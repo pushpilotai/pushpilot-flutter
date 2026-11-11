@@ -13,7 +13,10 @@ class PushPilot {
   static Future<void> init(String sdkKey, {String? baseUrl}) =>
       _call('init', {'sdkKey': sdkKey, 'baseUrl': baseUrl});
 
-  /// Passes the FCM token at launch and on every refresh; null clears it.
+  /// Passes the device's push address; null clears it. With firebase_messaging 17 or later that is the
+  /// Firebase Installation ID from `onRegistered` after `register()`; on older versions it is the token from
+  /// `getToken` and `onTokenRefresh`. Pass only one of the two. (Firebase's installation ID is not PushPilot's
+  /// own installation id.)
   static Future<void> setPushToken(String? token) => _call('setPushToken', token);
 
   /// Links this installation to the app's own user id after login; null clears it.

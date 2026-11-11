@@ -5,7 +5,7 @@ Registers your app's installation with PushPilot and forwards its FCM push token
 - Android and iOS. Needs Flutter 3.47 or later and Dart 3.13 or later (built and tested with Flutter 3.47.1, Dart 3.13.1).
 - Android 7.0 (API 24) and later, the minimum for current Flutter (the native SDK itself supports API 23). iOS 15 and later.
 - A thin layer over the native PushPilot SDKs ([Android](../pushpilot-android/README.md), [iOS](../pushpilot-ios/README.md)). Syncing, retries, storage and validation all happen there; the Dart calls only pass through.
-- No Firebase dependency: your app keeps its own Firebase setup (`firebase_messaging`) and hands PushPilot the token.
+- No Firebase dependency: your app keeps its own Firebase setup (`firebase_messaging`) and hands PushPilot its push address (a Firebase Installation ID or a registration token).
 - Never asks for notification permission. No call ever throws; problems are logged in debug builds.
 
 ## Install
@@ -21,7 +21,9 @@ The plugin and the native SDKs are not published yet. Until they are, see [Local
 
 1. **Set up Firebase Messaging** in your app as [FlutterFire documents](https://firebase.flutter.dev/docs/messaging/overview): `firebase_core` and `firebase_messaging`, your `google-services.json` and `GoogleService-Info.plist`, the iOS *Push Notifications* capability, and your APNs key uploaded to the Firebase console.
 2. **Create the app in PushPilot** (dashboard › Apps) and copy its public SDK key.
-3. **Initialise PushPilot at launch and forward the FCM token**, now and on every refresh. `init` does not touch Firebase, so it can run before or after `Firebase.initializeApp()`. Calls made before `init` are queued and applied once it runs.
+3. **Initialise PushPilot at launch and forward the device's push address**, now and whenever it changes. `init` does not touch Firebase, so it can run before or after `Firebase.initializeApp()`. Calls made before `init` are queued and applied once it runs.
+
+   With `firebase_messaging` 17 or later, call `register()` and pass the Firebase Installation ID (FID) that `onRegistered` reports:
 
    ```dart
    import 'package:firebase_core/firebase_core.dart';
@@ -32,13 +34,21 @@ The plugin and the native SDKs are not published yet. Until they are, see [Local
      WidgetsFlutterBinding.ensureInitialized();
      PushPilot.init('pp_sdk_...');
      await Firebase.initializeApp();
-     FirebaseMessaging.instance.onTokenRefresh.listen(PushPilot.setPushToken);
-     PushPilot.setPushToken(await FirebaseMessaging.instance.getToken());
+     FirebaseMessaging.instance.onRegistered.listen(PushPilot.setPushToken);
+     await FirebaseMessaging.instance.register();
      runApp(const MyApp());
    }
    ```
 
-   Pass the FCM **registration token** from `getToken` / `onTokenRefresh`. `firebase_messaging` 17 marks these deprecated in favour of `register` / `onRegistered`, but those yield a Firebase Installation ID, which PushPilot cannot send to.
+   `register()` only works once you turn on Firebase's installation ID mode on each platform. That same switch turns off `getToken`:
+
+   - Android, in `android/app/src/main/AndroidManifest.xml` inside `<application>`:
+     `<meta-data android:name="firebase_messaging_installation_id_enabled" android:value="true" />`
+   - iOS, in `ios/Runner/Info.plist`: `<key>FirebaseMessagingInstallationIdEnabled</key><true/>`
+
+   On older `firebase_messaging` versions, pass the registration token instead: `PushPilot.setPushToken(await FirebaseMessaging.instance.getToken())` plus `onTokenRefresh.listen(PushPilot.setPushToken)`.
+
+   Pass one or the other, never both: PushPilot keeps a single push address per installation, and the server tells an FID from a token by its shape. Firebase's "installation ID" is Firebase's own identifier. It is not PushPilot's installation id, which the SDK creates and stores itself.
 
 4. **Tell PushPilot pushes apart** from your others, here in the foreground and the same way in your `onBackgroundMessage` handler:
 
@@ -60,7 +70,7 @@ All methods are static on `PushPilot`. Each returns a `Future` that completes on
 | Method | What it does |
 |---|---|
 | `init(String sdkKey, {String? baseUrl})` | Starts the SDK. Call once at launch; later calls are ignored. `baseUrl` defaults to `https://pushpilot.ai` and only needs setting for a self-hosted server. |
-| `setPushToken(String? token)` | Stores the FCM token and syncs it. `null` clears it, and the device then stops receiving pushes. |
+| `setPushToken(String? token)` | Stores the device's push address and syncs it: the Firebase Installation ID from `onRegistered` (`firebase_messaging` 17+) or the registration token from `getToken` / `onTokenRefresh` (older versions). Pass only one of them. `null` clears it, and the device then stops receiving pushes. |
 | `setExternalUserId(String? id)` | Links this installation to your own user id (1 to 255 characters). One user can have many installations. `null` clears it, the same as `logout()`. |
 | `setAttributes(Map<String, Object?> attributes)` | Merges custom attributes. Values are `String`, `num` or `bool`, or `null` to remove one. Pass dates as RFC 3339 strings (`DateTime.toUtc().toIso8601String()`): a `DateTime` cannot cross the platform channel, and the whole call is dropped. Only attributes declared on the dashboard are stored. |
 | `setTopics(List<String> topics)` | Replaces the topic list (at most 100; letters, digits and `-_.~%`). Invalid names are dropped. |
@@ -105,7 +115,7 @@ When everything is published, also remove `publish_to: none` from `pubspec.yaml`
 
 ## Example app
 
-`example/` initialises PushPilot at launch, forwards the token from `firebase_messaging`, and has buttons for permission, set user id, set topics, logout and forget. It builds and runs without a Firebase config, and then has no push token. To try it with real pushes:
+`example/` initialises PushPilot at launch, forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` (both platform flags are already set), and has buttons for permission, set user id, set topics, logout and forget. It builds and runs without a Firebase config, and then has no push token. To try it with real pushes:
 
 1. Put your `google-services.json` in `example/android/app/` (the Google services Gradle plugin is applied only when the file exists) and add your `GoogleService-Info.plist` to the `Runner` target in Xcode. Both are git-ignored; never commit them.
 2. Use a bundle id and application id registered in your Firebase project, and set your signing team in Xcode.

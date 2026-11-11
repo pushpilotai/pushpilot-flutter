@@ -3,6 +3,8 @@
         android:label="pushpilot_flutter_example"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Needed for FirebaseMessaging.register()/onRegistered; it also disables getToken(). -->
+        <meta-data android:name="firebase_messaging_installation_id_enabled" android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -39,6 +39,12 @@ void main() {
     await expectCall(() => PushPilot.setPushToken(null), 'setPushToken', null);
   });
 
+  test('setPushToken passes a Firebase Installation ID through unchanged', () async {
+    const fid = 'cR3kXq9-Tz_1aB2cD3eF4g'; // 22 base64url characters, the shape of an FID
+    expect(fid, hasLength(22));
+    await expectCall(() => PushPilot.setPushToken(fid), 'setPushToken', fid);
+  });
+
   test('setExternalUserId sends the id or null', () async {
     await expectCall(() => PushPilot.setExternalUserId('u1'), 'setExternalUserId', 'u1');
     calls.clear();

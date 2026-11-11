@@ -15,21 +15,18 @@ Future<void> main() async {
   await forwardPushToken();
 }
 
-/// Hands PushPilot the FCM token now and on every refresh, and spots PushPilot pushes.
-/// Without google-services.json / GoogleService-Info.plist Firebase cannot start, so the app runs without a token.
+/// Registers with FCM and hands PushPilot the Firebase Installation ID it reports, now and whenever it changes,
+/// and spots PushPilot pushes. Without google-services.json / GoogleService-Info.plist Firebase cannot start,
+/// so the app runs without a token.
 Future<void> forwardPushToken() async {
   try {
     await Firebase.initializeApp();
     final messaging = FirebaseMessaging.instance;
-    // PushPilot sends to FCM registration tokens. firebase_messaging 17 deprecates getToken/onTokenRefresh in
-    // favour of register/onRegistered, which yield a Firebase Installation ID instead, so keep the token APIs.
-    // ignore: deprecated_member_use
-    messaging.onTokenRefresh.listen(PushPilot.setPushToken);
+    messaging.onRegistered.listen(PushPilot.setPushToken);
     FirebaseMessaging.onMessage.listen((message) {
       if (PushPilot.handleMessage(message.data)) debugPrint('PushPilot push: ${message.notification?.title}');
     });
-    // ignore: deprecated_member_use
-    await PushPilot.setPushToken(await messaging.getToken());
+    await messaging.register();
   } catch (e) {
     debugPrint('No push token (Firebase not configured or token unavailable): $e');
   }
