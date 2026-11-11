@@ -1,0 +1,27 @@
+name: pushpilot_flutter
+description: "Registers the app installation with PushPilot and forwards its FCM push token, through the native PushPilot SDKs."
+version: 1.0.0
+homepage: https://pushpilot.ai
+publish_to: none # Not published yet; remove this line at release.
+
+environment:
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: ai.pushpilot.pushpilot_flutter
+        pluginClass: PushpilotFlutterPlugin
+      ios:
+        pluginClass: PushpilotFlutterPlugin
