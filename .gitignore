@@ -1,0 +1,21 @@
+.DS_Store
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.idea/
+*.iml
+.gradle/
+local.properties
+xcuserdata/
+*.xcuserstate
+Pods/
+.build/
+.swiftpm/
+Package.resolved
+# Firebase config is per developer and must never be committed.
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
