@@ -25,7 +25,8 @@ The plugin and the native SDKs are not published yet. Until they are, see [Local
    ```dart
    Future<void> main() async {
      WidgetsFlutterBinding.ensureInitialized();
-     await PushPilot.setLinkHandler(router.open); // optional, iOS only; before init (see below)
+     await PushPilot.setLinkHandler(router.open); // optional; before init (see Taps and links)
+     await PushPilot.setTapHandler((tap) => router.openOrder(tap.data['order_id'])); // optional
      await PushPilot.init('pp_sdk_...');
      runApp(const MyApp());
    }
@@ -34,6 +35,17 @@ The plugin and the native SDKs are not published yet. Until they are, see [Local
 3. **Ask for notification permission yourself**, when it suits your app (Android 13+ `POST_NOTIFICATIONS`; iOS `requestAuthorization`). PushPilot never prompts; it reads the result and reports it.
 4. **Identify the user** after login with `PushPilot.setExternalUserId(user.id)` and call `PushPilot.logout()` at logout.
 5. Do the platform steps below.
+
+### Taps and links
+
+Tapping a PushPilot push records the click and opens its link, or just the app when it has none; a button with a link opens that link, and one without only dismisses the push. Both handlers are optional and work the same on Android and iOS:
+
+- `setLinkHandler(handler)`: the link of a tapped push or button goes to `handler` instead of the system. Without one, the system opens it: a web page in the browser, or a deep link / universal link / URL scheme in your app.
+- `setTapHandler(handler)`: each tap that opens the app reaches `handler` as a `TappedNotification` with the push's `notificationId` and its custom `data` (the key-value pairs set on the dashboard).
+
+Set them before `init`. A tap that launches a killed app happens before any Dart runs, so the plugin holds its link and tap until `init` and then delivers each exactly once. Neither is delivered for a dismissal or a button without a link, which do not open the app. When a push's link is a web page and you set no link handler, the browser opens and your app does not, so `setTapHandler` gets nothing for that tap.
+
+On Android, the native link handler must be in place before the launching tap is handled, which is before Flutter starts. The plugin therefore remembers whether your Dart code set a link handler and sets the native one at the next process start. The first launch after you add `setLinkHandler` to an app (or remove it) still follows the previous run's choice for a tap that launches the app; every later tap follows the current one.
 
 ### Android: what you add
 
@@ -55,7 +67,7 @@ if (defaultTargetPlatform == TargetPlatform.android) {
 
 On older `firebase_messaging` versions, pass the registration token instead: `PushPilot.setPushToken(await FirebaseMessaging.instance.getToken())` plus `onTokenRefresh.listen(PushPilot.setPushToken)`. Pass one or the other, never both: PushPilot keeps a single push address per installation, and the server tells an FID from a token by its shape. Firebase's "installation ID" is not PushPilot's installation id, which the SDK creates and stores itself. An app that gets its FCM address from native code instead of `firebase_messaging` passes it the same way.
 
-**Nothing else is required.** The plugin shows PushPilot pushes itself, also when the app is killed (see [How PushPilot pushes reach the Android SDK](#how-pushpilot-pushes-reach-the-android-sdk)). Tapping one opens its link, or your launcher activity when it has none. Optional, inside `<application>`:
+**Nothing else is required.** The plugin shows PushPilot pushes itself, also when the app is killed (see [How PushPilot pushes reach the Android SDK](#how-pushpilot-pushes-reach-the-android-sdk)). Taps work as described in [Taps and links](#taps-and-links). Optional, inside `<application>`:
 
 ```xml
 <!-- Small icon (monochrome; Android draws it as a white silhouette) and the channel name in Settings. -->
@@ -78,7 +90,7 @@ Do not also pass PushPilot pushes to the native SDK's `handleMessage` from a `Fi
 
 ### How PushPilot pushes reach the Android SDK
 
-The plugin's manifest adds a broadcast receiver for FCM's `com.google.android.c2dm.intent.RECEIVE` broadcast, protected by `com.google.android.c2dm.permission.SEND` so that only Google Play services can send it. Android delivers that broadcast to every receiver an app declares for it, so this receiver gets each FCM message next to Firebase's own receiver. It ignores everything without `source` = `pushpilot` and hands PushPilot pushes to the native `PushPilot.handleMessage`, which shows the notification. No Dart code runs, so it works when the app is killed, in the background and in the foreground. A small content provider starts the native SDK with the key and base URL of your last `init` when the process starts, so delivery and taps are recorded even when Flutter never starts.
+The plugin's manifest adds a broadcast receiver for FCM's `com.google.android.c2dm.intent.RECEIVE` broadcast, protected by `com.google.android.c2dm.permission.SEND` so that only Google Play services can send it. Android delivers that broadcast to every receiver an app declares for it, so this receiver gets each FCM message next to Firebase's own receiver. It ignores everything without `source` = `pushpilot` and hands PushPilot pushes to the native `PushPilot.handleMessage`, which shows the notification. No Dart code runs, so it works when the app is killed, in the background and in the foreground. The native SDK starts itself from the key and base URL it saved at your last `init`, so delivery and taps are recorded even when Flutter never starts. A small content provider in the plugin runs at process start only to set the native link handler (see [Taps and links](#taps-and-links)).
 
 Why this way: a `FirebaseMessagingService` can't be used, because Android gives the messaging intent to only one service per app, and `firebase_messaging` already declares one. A Dart handler can't be used either, because a killed app has no Dart running, and `onBackgroundMessage` belongs to the app. The receiver works the same whether the app uses `firebase_messaging`, native Firebase Messaging, or another FCM plugin. It is the pattern `firebase_messaging` itself uses for its background messages.
 
@@ -87,8 +99,6 @@ Limits:
 - The broadcast is FCM's internal transport, not a documented Firebase API. Firebase has delivered messages this way for years and FlutterFire depends on it, but a future Firebase change could break it; the plugin would then need a new release.
 - The receiver has about 10 seconds (Android's limit for a broadcast) to show the push, including downloading its image. A slow image download ends without the image.
 - High-priority FCM messages wake a killed app; normal-priority ones may wait for Doze, as for any FCM app. A user who force-stops the app from Settings gets no pushes until they open it again (Android stops all its receivers).
-- The content provider starts the native SDK early in every process start, including those caused by an FCM message, so the SDK may sync then too, as it does in a native app that calls `init` in `Application.onCreate`.
-- No link handler on Android, and the push's custom `data` is not passed to Dart when a push is tapped: the native Android SDK opens links through Android itself (deep links or the browser) and gives no way to tell its launch-intent extras from others.
 
 ### iOS: what you add
 
@@ -108,7 +118,7 @@ The plugin registers for remote notifications once permission is granted, hands 
    Also add `import UserNotifications` at the top. `firebase_messaging` keeps working: it sees a Flutter delegate and gets its calls through it.
 3. **Optional: images and buttons**, with a Notification Service Extension (below). Without it, PushPilot pushes show their title and text only.
 
-`setPushToken` does nothing on iOS. Tapping a push records the click and opens its link through iOS (Safari, a universal link or your URL scheme), or, if you set `PushPilot.setLinkHandler`, sends the link to your Dart handler instead. Set the handler before `init` to also receive the link of a tap that launched the app. A PushPilot push that arrives while the app is in the foreground shows no banner, as in the native SDK.
+`setPushToken` does nothing on iOS. Taps work as described in [Taps and links](#taps-and-links); the plugin also reads the tap that launched the app from the scene connection (Flutter passes it to plugins once the engine is attached), so that tap is handled even when the plugin registers after iOS has delivered it to the app delegate. A PushPilot push that arrives while the app is in the foreground shows no banner, as in the native SDK.
 
 ### iOS: adding the Notification Service Extension
 
@@ -146,7 +156,7 @@ The extension needs no Push Notifications capability and no App Group, and sends
 
 ### Moving from 1.x
 
-- Android: remove any code that showed PushPilot pushes yourself; the plugin now shows them. Keep `setPushToken`.
+- Android: remove any code that showed PushPilot pushes yourself; the plugin now shows them. Keep `setPushToken`. Read tapped-push data with `setTapHandler`, not from your activity's intent extras: the native SDK no longer puts it there under your own keys.
 - iOS: remove `firebase_messaging`'s token forwarding for PushPilot and the `FirebaseMessagingInstallationIdEnabled` key if you only had it for PushPilot. The 1.x iOS path (Firebase token to PushPilot) is gone: `setPushToken` is ignored on iOS, and the plugin passes the APNs device token itself. Add the Push Notifications capability and, if you use `firebase_messaging`, the `AppDelegate` line above.
 
 ## API
@@ -163,7 +173,8 @@ All methods are static on `PushPilot`. Each returns a `Future` that completes on
 | `logout()` | Clears the external user id. The device stays registered and keeps receiving pushes. |
 | `forget()` | Deletes this installation from PushPilot and clears everything the SDK stored. A new installation is registered only after your next setter call or the next app launch. To keep a user forgotten, stop calling the SDK for them. |
 | `handleMessage(Map<String, dynamic> data) → bool` | Returns `true` when a push came from PushPilot (its data has `source` = `pushpilot`). Use it to skip PushPilot pushes in your own Firebase handlers; the plugin already shows them. Answered in Dart, so it works in a background isolate and needs no `init`. |
-| `setLinkHandler(void Function(String url)? handler)` | iOS only: sends the link of a tapped PushPilot push or button to `handler` instead of letting iOS open it. `null` lets iOS open links again. Set it before `init` to also get the link of a tap that launched the app. Does nothing on Android. |
+| `setLinkHandler(void Function(String url)? handler)` | Sends the link of a tapped PushPilot push or button to `handler` instead of letting the system open it. `null` lets the system open links again. Set it before `init` to also get the link of the tap that launched the app; each link arrives once. |
+| `setTapHandler(void Function(TappedNotification tap)? handler)` | Sends each tap that opened the app to `handler`, with `tap.notificationId` and `tap.data` (the push's custom data, `Map<String, String>`). `null` stops them. Set it before `init` to also get the tap that launched the app; each tap arrives once. |
 
 Invalid values are dropped by the native SDK with a log message instead of being sent.
 
@@ -202,7 +213,7 @@ When everything is published, also remove `publish_to: none` from `pubspec.yaml`
 
 ## Example app
 
-`example/` sets a link handler and initialises PushPilot at launch, shows the last tapped link, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
+`example/` sets a link handler and a tap handler and initialises PushPilot at launch, shows the last tapped link and tap, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
 
 1. Android: put your `google-services.json` in `example/android/app/` (the Google services Gradle plugin is applied only when the file exists), with an application id registered in your Firebase project. It is git-ignored; never commit it.
 2. iOS: set your signing team and bundle ids you own for both targets (the extension's must start with the app's), and add your APNs key to the PushPilot app.
@@ -224,7 +235,7 @@ On the iOS simulator the app gets a device token once you allow notifications, a
 flutter analyze && flutter test
 ```
 
-The Dart tests mock the platform channel and check that every call sends the right method and arguments, and that links from native reach the handler. The iOS glue (where a tapped link goes before and after `init`, and `setPushToken` being refused) is tested in `example/ios/RunnerTests`:
+The Dart tests mock the platform channel and check that every call sends the right method and arguments, and that links and taps from native reach the handlers. The native glue that holds taps and links until `init` and passes each tap once is tested on both platforms: Android with `cd example/android && ./gradlew :pushpilot_flutter:testDebugUnitTest`, iOS (also `setPushToken` being refused) in `example/ios/RunnerTests`:
 
 ```bash
 cd example/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RunnerTests
