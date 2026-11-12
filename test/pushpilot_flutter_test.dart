@@ -66,6 +66,24 @@ void main() {
     await expectCall(PushPilot.forget, 'forget', null);
   });
 
+  test('setLinkHandler tells native whether Dart handles links', () async {
+    await expectCall(() => PushPilot.setLinkHandler((_) {}), 'setLinkHandler', true);
+    calls.clear();
+    await expectCall(() => PushPilot.setLinkHandler(null), 'setLinkHandler', false);
+  });
+
+  test('a link from native reaches the handler', () async {
+    final links = <String>[];
+    await PushPilot.setLinkHandler(links.add);
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(const MethodCall('onLink', 'myapp://orders/42')),
+      (_) {},
+    );
+    expect(links, ['myapp://orders/42']);
+    await PushPilot.setLinkHandler(null);
+  });
+
   test('handleMessage answers in Dart without a channel call', () {
     expect(PushPilot.handleMessage({'source': 'pushpilot', 'k': 'v'}), isTrue);
     expect(PushPilot.handleMessage({'source': 'other'}), isFalse);

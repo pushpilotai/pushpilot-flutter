@@ -7,16 +7,18 @@ class PushPilot {
   PushPilot._();
 
   static const MethodChannel _channel = MethodChannel('ai.pushpilot/sdk');
+  static void Function(String url)? _linkHandler;
 
   /// Starts the SDK with the app's public SDK key. Call once at launch; later calls are ignored.
   /// [baseUrl] is only needed for a self-hosted server.
   static Future<void> init(String sdkKey, {String? baseUrl}) =>
       _call('init', {'sdkKey': sdkKey, 'baseUrl': baseUrl});
 
-  /// Passes the device's push address; null clears it. With firebase_messaging 17 or later that is the
-  /// Firebase Installation ID from `onRegistered` after `register()`; on older versions it is the token from
-  /// `getToken` and `onTokenRefresh`. Pass only one of the two. (Firebase's installation ID is not PushPilot's
-  /// own installation id.)
+  /// Android only: passes the device's FCM push address; null clears it. With firebase_messaging 17 or later
+  /// that is the Firebase Installation ID from `onRegistered` after `register()`; on older versions it is the
+  /// token from `getToken` and `onTokenRefresh`. Pass only one of the two. (Firebase's installation ID is not
+  /// PushPilot's own installation id.) On iOS the plugin passes the APNs device token itself and this call
+  /// is ignored.
   static Future<void> setPushToken(String? token) => _call('setPushToken', token);
 
   /// Links this installation to the app's own user id after login; null clears it.
@@ -35,8 +37,23 @@ class PushPilot {
   /// Deletes this installation from PushPilot and clears local state.
   static Future<void> forget() => _call('forget');
 
-  /// True when a received push came from PushPilot. Pass `RemoteMessage.data`; makes no call.
+  /// True when a received push came from PushPilot. Pass `RemoteMessage.data`; makes no call. The plugin
+  /// already shows PushPilot pushes itself, so use this in your own Firebase handlers to skip them.
   static bool handleMessage(Map<String, dynamic> data) => data['source'] == 'pushpilot';
+
+  /// iOS only: sends the link of a tapped PushPilot push or button to [handler] instead of letting iOS open
+  /// it; null lets iOS open links again. Set it before [init] to also get the link of a tap that launched
+  /// the app. On Android, links open through Android itself, as deep links or in the browser.
+  static Future<void> setLinkHandler(void Function(String url)? handler) {
+    _linkHandler = handler;
+    _channel.setMethodCallHandler(handler == null ? null : _onNativeCall);
+    return _call('setLinkHandler', handler != null);
+  }
+
+  /// Receives the native side's calls: a tapped link for the handler.
+  static Future<void> _onNativeCall(MethodCall call) async {
+    if (call.method == 'onLink') _linkHandler?.call(call.arguments as String);
+  }
 
   /// Sends one call to the native SDK and swallows any failure so the app never sees it.
   static Future<void> _call(String method, [Object? arguments]) async {
