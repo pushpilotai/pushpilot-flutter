@@ -6,9 +6,11 @@ import UserNotifications
 
 /// Passes each Dart call straight to the native PushPilot SDK, and does the app-delegate work a native app
 /// would: registers for the APNs device token, hands it to the SDK, and forwards notification taps.
-public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
+public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDelegate {
   private let badArguments = FlutterError(code: "bad_arguments", message: "unexpected argument type", details: nil)
-  private var links = LinkGate()
+  let gate = DartGate()
+  private var dartHandlesLinks = false
+  private var dartHandlesTaps = false
   private var channel: FlutterMethodChannel?
 
   /// Listens on the channel the Dart side calls and on the app's delegate calls.
@@ -18,6 +20,8 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
     plugin.channel = channel
     registrar.addMethodCallDelegate(plugin, channel: channel)
     registrar.addApplicationDelegate(plugin)
+    // With scenes, the tap that launches a killed app arrives with the scene connection.
+    registrar.addSceneDelegate(plugin)
     // FlutterAppDelegate forwards notification-center calls to plugins once it is the center's delegate.
     // An app or plugin that set its own delegate keeps it; the README says what to do then.
     let center = UNUserNotificationCenter.current()
@@ -50,20 +54,42 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
   public func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                      withCompletionHandler completionHandler: @escaping () -> Void) {
     // Every plugin gets this call with the same handler, so only the push's owner completes it.
-    if PushPilot.handleNotificationResponse(response) { completionHandler() }
+    guard PushPilot.handleNotificationResponse(response) else { return }
+    tapped(response, opensApp: UIApplication.shared.applicationState != .background)
+    completionHandler()
   }
 
-  /// A PushPilot link from the SDK, on the main thread.
+  /// Forwards the tap that launched the app; the SDK counts a tap that also reaches `didReceive` once.
+  public func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
+                    options connectionOptions: UIScene.ConnectionOptions?) -> Bool {
+    if let response = connectionOptions?.notificationResponse, PushPilot.handleNotificationResponse(response) {
+      tapped(response, opensApp: true)
+    }
+    return false // other plugins may want the connection too
+  }
+
+  /// Passes a tap that opened the app to Dart, once per notification. A button without a link only wakes
+  /// the app in the background (`opensApp` false), as on Android where it never reaches the app.
+  private func tapped(_ response: UNNotificationResponse, opensApp: Bool) {
+    let userInfo = response.notification.request.content.userInfo
+    guard opensApp, response.actionIdentifier != UNNotificationDismissActionIdentifier,
+          let id = userInfo["notification_id"] as? String, gate.firstTap(id) else { return }
+    let data = userInfo["data"] as? [String: String] ?? [:]
+    gate.run { [weak self] in
+      guard let self, self.dartHandlesTaps else { return }
+      self.channel?.invokeMethod("onTap", arguments: ["notificationId": id, "data": data])
+    }
+  }
+
+  /// A PushPilot link from the SDK, on the main thread: it waits for Dart's init, then goes to Dart or iOS.
   private func receive(_ url: URL) {
-    links.arrived(url, deliver: deliver)
-  }
-
-  /// Gives a link to the Dart handler, or to iOS when Dart has none.
-  private func deliver(_ url: URL, toDart: Bool) {
-    if toDart {
-      channel?.invokeMethod("onLink", arguments: url.absoluteString)
-    } else {
-      UIApplication.shared.open(url)
+    gate.run { [weak self] in
+      guard let self else { return }
+      if self.dartHandlesLinks {
+        self.channel?.invokeMethod("onLink", arguments: url.absoluteString)
+      } else {
+        UIApplication.shared.open(url)
+      }
     }
   }
 
@@ -82,7 +108,7 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
       } else {
         PushPilot.initialize(sdkKey: sdkKey)
       }
-      links.dartStarted(deliver: deliver)
+      gate.start()
     case "setPushToken":
       return result(FlutterError(code: "unsupported",
                                  message: "On iOS the plugin passes the APNs device token itself", details: nil))
@@ -101,7 +127,9 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
     case "forget":
       PushPilot.forget()
     case "setLinkHandler":
-      links.dartHandlesLinks = call.arguments as? Bool ?? false
+      dartHandlesLinks = call.arguments as? Bool ?? false
+    case "setTapHandler":
+      dartHandlesTaps = call.arguments as? Bool ?? false
     default:
       return result(FlutterMethodNotImplemented)
     }
@@ -109,22 +137,28 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin {
   }
 }
 
-/// Decides where a tapped link goes. A tap that launches the app arrives before Dart runs, so links wait
-/// until Dart's `init`; by then Dart has said whether it handles links (it sets its handler first).
-struct LinkGate {
-  var dartHandlesLinks = false
+/// Holds work for Dart until Dart's `init`: a tap that launches the app arrives before Dart runs, and by
+/// `init` Dart has said whether it handles links and taps (it sets its handlers first). Main thread only.
+final class DartGate {
   private var started = false
-  private var waiting: [URL] = []
+  private var waiting: [() -> Void] = []
+  private var seen: Set<String> = []
 
-  /// Delivers [url] now, or keeps it until Dart starts.
-  mutating func arrived(_ url: URL, deliver: (URL, Bool) -> Void) {
-    if started { deliver(url, dartHandlesLinks) } else { waiting.append(url) }
+  /// Runs [work] now, or once Dart starts.
+  func run(_ work: @escaping () -> Void) {
+    if started { work() } else { waiting.append(work) }
   }
 
-  /// Marks Dart as started and delivers the links that were waiting.
-  mutating func dartStarted(deliver: (URL, Bool) -> Void) {
+  /// Marks Dart as started and runs what waited, in arrival order.
+  func start() {
     started = true
-    waiting.forEach { deliver($0, dartHandlesLinks) }
+    let ready = waiting
     waiting = []
+    ready.forEach { $0() }
+  }
+
+  /// True the first time a notification id is seen in this process.
+  func firstTap(_ notificationId: String) -> Bool {
+    seen.insert(notificationId).inserted
   }
 }

@@ -6,29 +6,24 @@ import XCTest
 
 /// Unit tests for the plugin's own iOS glue; the SDK calls themselves are covered by the native SDK's tests.
 class RunnerTests: XCTestCase {
-  /// Collects where each link was sent.
-  private var sent: [(String, Bool)] = []
-  private func deliver(_ url: URL, toDart: Bool) { sent.append((url.absoluteString, toDart)) }
-
-  /// A link from a tap that launched the app waits for Dart's init, then goes to the Dart handler.
-  func testLinkBeforeInitWaitsForDart() {
-    var gate = LinkGate()
-    gate.arrived(URL(string: "https://example.com/a")!, deliver: deliver)
-    XCTAssertTrue(sent.isEmpty)
-    gate.dartHandlesLinks = true
-    gate.dartStarted(deliver: deliver)
-    XCTAssertEqual(sent.map(\.0), ["https://example.com/a"])
-    XCTAssertEqual(sent.map(\.1), [true])
+  /// Work from before init (a launch tap's link and tap) waits, then runs in arrival order; later work runs at once.
+  func testWorkWaitsForInitThenRunsInOrder() {
+    let gate = DartGate()
+    var ran: [String] = []
+    gate.run { ran.append("link") }
+    gate.run { ran.append("tap") }
+    XCTAssertTrue(ran.isEmpty)
+    gate.start()
+    gate.run { ran.append("later") }
+    XCTAssertEqual(ran, ["link", "tap", "later"])
   }
 
-  /// Without a Dart handler the link goes to iOS, before or after init.
-  func testLinkWithoutDartHandlerGoesToSystem() {
-    var gate = LinkGate()
-    gate.arrived(URL(string: "myapp://x")!, deliver: deliver)
-    gate.dartStarted(deliver: deliver)
-    gate.arrived(URL(string: "myapp://y")!, deliver: deliver)
-    XCTAssertEqual(sent.map(\.0), ["myapp://x", "myapp://y"])
-    XCTAssertEqual(sent.map(\.1), [false, false])
+  /// A notification reaching the plugin twice (scene connection and didReceive) is passed on once.
+  func testEachTapCountsOnce() {
+    let gate = DartGate()
+    XCTAssertTrue(gate.firstTap("n1"))
+    XCTAssertFalse(gate.firstTap("n1"))
+    XCTAssertTrue(gate.firstTap("n2"))
   }
 
   /// setPushToken from Dart is refused on iOS, where the plugin passes the APNs token itself.
