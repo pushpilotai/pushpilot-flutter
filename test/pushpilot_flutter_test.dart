@@ -84,6 +84,28 @@ void main() {
     await PushPilot.setLinkHandler(null);
   });
 
+  test('setTapHandler tells native whether Dart handles taps', () async {
+    await expectCall(() => PushPilot.setTapHandler((_) {}), 'setTapHandler', true);
+    calls.clear();
+    await expectCall(() => PushPilot.setTapHandler(null), 'setTapHandler', false);
+  });
+
+  test('a tap from native reaches the handler with its data', () async {
+    final taps = <TappedNotification>[];
+    await PushPilot.setTapHandler(taps.add);
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(const MethodCall('onTap', {
+        'notificationId': 'n-42',
+        'data': {'order_id': '42'},
+      })),
+      (_) {},
+    );
+    expect(taps.single.notificationId, 'n-42');
+    expect(taps.single.data, {'order_id': '42'});
+    await PushPilot.setTapHandler(null);
+  });
+
   test('handleMessage answers in Dart without a channel call', () {
     expect(PushPilot.handleMessage({'source': 'pushpilot', 'k': 'v'}), isTrue);
     expect(PushPilot.handleMessage({'source': 'other'}), isFalse);

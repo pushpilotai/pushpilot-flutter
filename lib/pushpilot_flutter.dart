@@ -8,6 +8,7 @@ class PushPilot {
 
   static const MethodChannel _channel = MethodChannel('ai.pushpilot/sdk');
   static void Function(String url)? _linkHandler;
+  static void Function(TappedNotification tap)? _tapHandler;
 
   /// Starts the SDK with the app's public SDK key. Call once at launch; later calls are ignored.
   /// [baseUrl] is only needed for a self-hosted server.
@@ -41,18 +42,34 @@ class PushPilot {
   /// already shows PushPilot pushes itself, so use this in your own Firebase handlers to skip them.
   static bool handleMessage(Map<String, dynamic> data) => data['source'] == 'pushpilot';
 
-  /// iOS only: sends the link of a tapped PushPilot push or button to [handler] instead of letting iOS open
-  /// it; null lets iOS open links again. Set it before [init] to also get the link of a tap that launched
-  /// the app. On Android, links open through Android itself, as deep links or in the browser.
+  /// Sends the link of a tapped PushPilot push or button to [handler] instead of letting the system open
+  /// it; null lets the system open links again. Set it before [init] to also get the link of the tap that
+  /// launched the app; links wait until [init] and arrive once each.
   static Future<void> setLinkHandler(void Function(String url)? handler) {
     _linkHandler = handler;
-    _channel.setMethodCallHandler(handler == null ? null : _onNativeCall);
+    _channel.setMethodCallHandler(_onNativeCall);
     return _call('setLinkHandler', handler != null);
   }
 
-  /// Receives the native side's calls: a tapped link for the handler.
+  /// Sends each tap on a PushPilot push that opened the app, with the push's custom data, to [handler];
+  /// null stops them. Set it before [init] to also get the tap that launched the app; taps wait until
+  /// [init] and arrive once each.
+  static Future<void> setTapHandler(void Function(TappedNotification tap)? handler) {
+    _tapHandler = handler;
+    _channel.setMethodCallHandler(_onNativeCall);
+    return _call('setTapHandler', handler != null);
+  }
+
+  /// Receives the native side's calls: a tapped link or a tap, for the handlers.
   static Future<void> _onNativeCall(MethodCall call) async {
-    if (call.method == 'onLink') _linkHandler?.call(call.arguments as String);
+    switch (call.method) {
+      case 'onLink':
+        _linkHandler?.call(call.arguments as String);
+      case 'onTap':
+        final args = call.arguments as Map;
+        _tapHandler?.call(TappedNotification(
+            args['notificationId'] as String, Map<String, String>.from(args['data'] as Map)));
+    }
   }
 
   /// Sends one call to the native SDK and swallows any failure so the app never sees it.
@@ -63,4 +80,16 @@ class PushPilot {
       if (kDebugMode) debugPrint('PushPilot.$method failed: $e');
     }
   }
+}
+
+/// A tapped PushPilot push that opened the app.
+class TappedNotification {
+  /// Creates one; the plugin does this for each tap.
+  const TappedNotification(this.notificationId, this.data);
+
+  /// PushPilot's id for the notification, the same one its events carry.
+  final String notificationId;
+
+  /// The push's custom data from the dashboard; empty when it had none.
+  final Map<String, String> data;
 }
