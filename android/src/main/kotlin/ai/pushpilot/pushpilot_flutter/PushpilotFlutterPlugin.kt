@@ -26,13 +26,20 @@ class PushpilotFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     /** Runs one SDK call; the SDK returns at once and never throws. */
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "init" -> PushPilot.init(context, call.argument<String>("sdkKey")!!, call.argument<String>("baseUrl"))
+            "init" -> {
+                val sdkKey = call.argument<String>("sdkKey")!!
+                val baseUrl = call.argument<String>("baseUrl")
+                StoredConfig.save(context, sdkKey, baseUrl)
+                PushPilot.init(context, sdkKey, baseUrl)
+            }
             "setPushToken" -> PushPilot.setPushToken(call.arguments as String?)
             "setExternalUserId" -> PushPilot.setExternalUserId(call.arguments as String?)
             "setAttributes" -> @Suppress("UNCHECKED_CAST") PushPilot.setAttributes(call.arguments as Map<String, Any?>)
             "setTopics" -> @Suppress("UNCHECKED_CAST") PushPilot.setTopics(call.arguments as List<String>)
             "logout" -> PushPilot.logout()
             "forget" -> PushPilot.forget()
+            // Links open through Android itself (an intent); the native SDK has no link handler to set.
+            "setLinkHandler" -> Unit
             else -> return result.notImplemented()
         }
         result.success(null)

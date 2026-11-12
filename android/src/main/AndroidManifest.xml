@@ -1,1 +1,20 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Gets FCM messages straight from Google Play services, next to Firebase's own receiver, so PushPilot
+             pushes are shown even when the app is killed and no Dart code runs. -->
+        <receiver
+            android:name="ai.pushpilot.pushpilot_flutter.PushPilotMessageReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Starts the SDK at process start with the last init values, as a native app's Application.onCreate would. -->
+        <provider
+            android:name="ai.pushpilot.pushpilot_flutter.PushPilotInitProvider"
+            android:authorities="${applicationId}.pushpilotinitprovider"
+            android:exported="false" />
+    </application>
+</manifest>
