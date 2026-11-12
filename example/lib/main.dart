@@ -12,14 +12,16 @@ const baseUrl = String.fromEnvironment('PUSHPILOT_BASE_URL');
 // The example's own permission prompt (MainActivity.kt, AppDelegate.swift); PushPilot never asks.
 const permission = MethodChannel('pushpilot_example/permission');
 
-/// The last link a tapped PushPilot push gave the app (iOS), shown on screen.
+/// The last link and the last tap a PushPilot push gave the app, shown on screen.
 final lastLink = ValueNotifier<String?>(null);
+final lastTap = ValueNotifier<String?>(null);
 
-/// Sets the link handler, starts PushPilot, then the UI; on Android also forwards the FCM address.
+/// Sets the link and tap handlers, starts PushPilot, then the UI; on Android also forwards the FCM address.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Before init, so the link of a tap that launched the app arrives here too.
+  // Before init, so the link and data of a tap that launched the app arrive here too.
   await PushPilot.setLinkHandler((url) => lastLink.value = url);
+  await PushPilot.setTapHandler((tap) => lastTap.value = '${tap.notificationId} ${tap.data}');
   await PushPilot.init(sdkKey, baseUrl: baseUrl.isEmpty ? null : baseUrl);
   runApp(const ExampleApp());
   // iOS needs nothing here: the plugin hands PushPilot the APNs device token itself.
@@ -65,6 +67,10 @@ class ExampleApp extends StatelessWidget {
             ValueListenableBuilder(
               valueListenable: lastLink,
               builder: (context, link, _) => Text('Last link: ${link ?? 'none'}'),
+            ),
+            ValueListenableBuilder(
+              valueListenable: lastTap,
+              builder: (context, tap, _) => Text('Last tap: ${tap ?? 'none'}'),
             ),
           ],
         ),
