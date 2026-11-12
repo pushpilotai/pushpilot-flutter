@@ -11,10 +11,10 @@
             </intent-filter>
         </receiver>
 
-        <!-- Starts the SDK at process start with the last init values, as a native app's Application.onCreate would. -->
+        <!-- Runs at process start, before the tap of a push that launches a killed app, to set the native link handler. -->
         <provider
-            android:name="ai.pushpilot.pushpilot_flutter.PushPilotInitProvider"
-            android:authorities="${applicationId}.pushpilotinitprovider"
+            android:name="ai.pushpilot.pushpilot_flutter.PushPilotStartupProvider"
+            android:authorities="${applicationId}.pushpilotstartupprovider"
             android:exported="false" />
     </application>
 </manifest>
