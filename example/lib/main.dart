@@ -1,34 +1,46 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pushpilot_flutter/pushpilot_flutter.dart';
 
 // Pass your own with --dart-define=PUSHPILOT_SDK_KEY=pp_sdk_... (and PUSHPILOT_BASE_URL for a self-hosted server).
 const sdkKey = String.fromEnvironment('PUSHPILOT_SDK_KEY', defaultValue: 'pp_sdk_replace_me');
 const baseUrl = String.fromEnvironment('PUSHPILOT_BASE_URL');
 
-/// Starts PushPilot first, then the UI, then Firebase token forwarding.
+// The example's own permission prompt (MainActivity.kt, AppDelegate.swift); PushPilot never asks.
+const permission = MethodChannel('pushpilot_example/permission');
+
+/// The last link a tapped PushPilot push gave the app (iOS), shown on screen.
+final lastLink = ValueNotifier<String?>(null);
+
+/// Sets the link handler, starts PushPilot, then the UI; on Android also forwards the FCM address.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before init, so the link of a tap that launched the app arrives here too.
+  await PushPilot.setLinkHandler((url) => lastLink.value = url);
   await PushPilot.init(sdkKey, baseUrl: baseUrl.isEmpty ? null : baseUrl);
   runApp(const ExampleApp());
-  await forwardPushToken();
+  // iOS needs nothing here: the plugin hands PushPilot the APNs device token itself.
+  if (defaultTargetPlatform == TargetPlatform.android) await forwardPushToken();
 }
 
-/// Registers with FCM and hands PushPilot the Firebase Installation ID it reports, now and whenever it changes,
-/// and spots PushPilot pushes. Without google-services.json / GoogleService-Info.plist Firebase cannot start,
-/// so the app runs without a token.
+/// Android: registers with FCM and hands PushPilot the Firebase Installation ID, now and whenever it changes.
+/// The plugin shows PushPilot pushes itself. Without google-services.json Firebase cannot start, so the app
+/// runs without a push address.
 Future<void> forwardPushToken() async {
   try {
     await Firebase.initializeApp();
     final messaging = FirebaseMessaging.instance;
     messaging.onRegistered.listen(PushPilot.setPushToken);
     FirebaseMessaging.onMessage.listen((message) {
-      if (PushPilot.handleMessage(message.data)) debugPrint('PushPilot push: ${message.notification?.title}');
+      if (PushPilot.handleMessage(message.data)) return; // already shown by PushPilot
+      debugPrint('Another push: ${message.messageId}');
     });
     await messaging.register();
   } catch (e) {
-    debugPrint('No push token (Firebase not configured or token unavailable): $e');
+    debugPrint('No push address (Firebase not configured or unavailable): $e');
   }
 }
 
@@ -36,7 +48,7 @@ Future<void> forwardPushToken() async {
 class ExampleApp extends StatelessWidget {
   const ExampleApp({super.key});
 
-  /// Lays out the buttons.
+  /// Lays out the buttons and the last tapped link.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -45,12 +57,15 @@ class ExampleApp extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // PushPilot never prompts; the app asks when it suits it.
-            button('Allow notifications', () => FirebaseMessaging.instance.requestPermission()),
+            button('Allow notifications', () => permission.invokeMethod<void>('request')),
             button('Set user id', () => PushPilot.setExternalUserId('user-123')),
             button('Set topics', () => PushPilot.setTopics(['news', 'offers'])),
             button('Log out', PushPilot.logout),
             button('Forget this device', PushPilot.forget),
+            ValueListenableBuilder(
+              valueListenable: lastLink,
+              builder: (context, link, _) => Text('Last link: ${link ?? 'none'}'),
+            ),
           ],
         ),
       ),
