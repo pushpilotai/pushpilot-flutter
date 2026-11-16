@@ -4,7 +4,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 - Android and iOS. Needs Flutter 3.47 or later and Dart 3.13 or later (built and tested with Flutter 3.47.1, Dart 3.13.1).
 - Android 7.0 (API 24) and later, the minimum for current Flutter (the native SDK itself supports API 23). iOS 15 and later.
-- A thin layer over the native PushPilot SDKs 2.0.0 ([Android](../pushpilot-android/README.md), [iOS](../pushpilot-ios/README.md)). Syncing, retries, storage, validation and showing notifications all happen there.
+- A thin layer over the native PushPilot SDKs 2.0.0 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
 - No Firebase dependency. On Android your app keeps its own Firebase setup and hands PushPilot the FCM push address; on iOS the plugin uses APNs directly and needs no Firebase at all.
 - Never asks for notification permission. No call ever throws; problems are logged in debug builds.
 
@@ -14,8 +14,6 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 dependencies:
   pushpilot_flutter: ^2.0.0
 ```
-
-The plugin and the native SDKs are not published yet. Until they are, see [Local development](#local-development).
 
 ## Integrate
 
@@ -182,8 +180,8 @@ Invalid values are dropped by the native SDK with a log message instead of being
 
 The plugin sends nothing itself. What the native SDKs send and when, and what to declare in the Google Play **Data safety** form and App Store Connect **App Privacy**, are in the native READMEs:
 
-- Android: [What the SDK sends, and when](../pushpilot-android/README.md#what-the-sdk-sends-and-when) and [Google Play Data safety form](../pushpilot-android/README.md#google-play-data-safety-form)
-- iOS: [What the SDK sends, and when](../pushpilot-ios/README.md#what-the-sdk-sends-and-when) and [App Store Connect: App Privacy](../pushpilot-ios/README.md#app-store-connect-app-privacy)
+- Android: [What the SDK sends, and when](https://github.com/pushpilotai/pushpilot-android#what-the-sdk-sends-and-when) and [Google Play Data safety form](https://github.com/pushpilotai/pushpilot-android#google-play-data-safety-form)
+- iOS: [What the SDK sends, and when](https://github.com/pushpilotai/pushpilot-ios#what-the-sdk-sends-and-when) and [App Store Connect: App Privacy](https://github.com/pushpilotai/pushpilot-ios#app-store-connect-app-privacy)
 
 The iOS SDK ships its own privacy manifest, which Xcode merges into your app's privacy report.
 
@@ -194,22 +192,22 @@ The native SDKs are not published, so the plugin builds them from sibling checko
 **Android.** The plugin depends on `ai.pushpilot:sdk:2.0.0` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
 
 ```bash
-cd ../pushpilot-android && git switch feat/sdk-v2 && ./gradlew :sdk:publishToMavenLocal
+cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
 ```
 
 At release: publish the SDK to Maven Central and delete the `mavenLocal()` line.
 
-**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "<pushpilot-ios repository URL>", from: "2.0.0")`. The example's Notification Service Extension also uses the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
+**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.0.0")`. The example's Notification Service Extension also uses the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
 
-**iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The native SDK has no podspec, so the plugin's podspec depends on a pod named `PushPilot`, and `ios/dev/PushPilot.podspec` provides it, built from the latest commit on the `feat/sdk-v2` branch of the `pushpilot-ios` checkout. It contains only the `PushPilot` library; add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
+**iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The plugin's podspec depends on the `PushPilot` pod, which `PushPilot.podspec` in the `pushpilot-ios` checkout provides. It contains only the `PushPilot` library; add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
 
 ```ruby
-pod 'PushPilot', :podspec => '<path to this repo>/ios/dev/PushPilot.podspec'
+pod 'PushPilot', :path => '<path to pushpilot-ios>'
 ```
 
-Only add it to a CocoaPods build: with Swift Package Manager on, the plugin already gets PushPilot as a Swift package, and the pod would link it twice. The example uses Swift Package Manager, so it has no Podfile; to try CocoaPods with it, turn the setting off, run `flutter build ios --config-only` once to generate `example/ios/Podfile` (its `pod install` fails until the line is added), and add the line with the path `../../ios/dev/PushPilot.podspec`. Run `pod update PushPilot` after new commits on that branch. At release: move `ios/dev/PushPilot.podspec` into the pushpilot-ios repository with its public `:git` URL and a `:tag`, publish it to CocoaPods trunk, then delete `ios/dev/` and the Podfile line.
+Only add it to a CocoaPods build: with Swift Package Manager on, the plugin already gets PushPilot as a Swift package, and the pod would link it twice. The example uses Swift Package Manager, so it has no Podfile; to try CocoaPods with it, turn the setting off, run `flutter build ios --config-only` once to generate `example/ios/Podfile` (its `pod install` fails until the line is added), and add the line with the path `../../../pushpilot-ios`. Once the pod is on CocoaPods trunk, the Podfile line is no longer needed.
 
-When everything is published, also remove `publish_to: none` from `pubspec.yaml`.
+The full release order is in [RELEASING.md](RELEASING.md).
 
 ## Example app
 
@@ -243,4 +241,4 @@ cd example/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner -
 
 ## Licence
 
-No licence has been chosen yet.
+Apache License 2.0. See [LICENSE](LICENSE).
