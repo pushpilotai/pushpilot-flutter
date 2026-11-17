@@ -1,6 +1,6 @@
-## 2.1.0 (unreleased)
+## 2.1.1 (unreleased)
 
-* Wraps the PushPilot Android and iOS SDKs 2.1.0, which show live activities started by push with no Dart code: Android draws them as ongoing notifications (promoted Live Updates on Android 16), iOS 17.2+ as Live Activities through a Widget Extension.
+* Wraps the PushPilot Android and iOS SDKs 2.1.1, which show live activities started by push with no Dart code: Android draws them as ongoing notifications (promoted Live Updates on Android 16), iOS 17.2+ as Live Activities through a Widget Extension.
 * `init(sdkKey, appGroup: ...)`: the App Group shared with the iOS Widget Extension, for images in live activity layouts. Ignored on Android.
 * `handleLiveActivityURL(url)`: records a tap on an iOS live activity and returns the activity's own link, or `null` when it has none. Other URLs, and every URL on Android, come back unchanged.
 

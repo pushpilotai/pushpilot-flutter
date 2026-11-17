@@ -4,7 +4,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 - Android and iOS. Needs Flutter 3.47 or later and Dart 3.13 or later (built and tested with Flutter 3.47.1, Dart 3.13.1).
 - Android 7.0 (API 24) and later, the minimum for current Flutter (the native SDK itself supports API 23). iOS 15 and later.
-- A thin layer over the native PushPilot SDKs 2.1.0 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
+- A thin layer over the native PushPilot SDKs 2.1.1 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
 - No Firebase dependency. On Android your app keeps its own Firebase setup and hands PushPilot the FCM push address; on iOS the plugin uses APNs directly and needs no Firebase at all.
 - Never asks for notification permission. No call ever throws; problems are logged in debug builds.
 
@@ -12,7 +12,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 ```yaml
 dependencies:
-  pushpilot_flutter: ^2.1.0
+  pushpilot_flutter: ^2.1.1
 ```
 
 ## Integrate
@@ -154,9 +154,9 @@ The extension needs no Push Notifications capability and no App Group, and sends
 
 ### Live activities
 
-From 2.1.0, PushPilot can start, update and end live activities by push, from the dashboard, a campaign or the server API: a score, a delivery or an upload that stays on screen and changes with each update. The native SDKs do all the work; your app starts none itself and needs no Dart beyond the two optional calls below.
+From 2.1.1, PushPilot can start, update and end live activities by push, from the dashboard, a campaign or the server API: a score, a delivery or an upload that stays on screen and changes with each update. The native SDKs do all the work; your app starts none itself and needs no Dart beyond the two optional calls below.
 
-**Android: nothing to add.** The Android SDK 2.1.0 draws each live activity as one ongoing notification on a "Live updates" channel, from the same receiver that shows your other PushPilot pushes. On Android 16 an activity sent as promoted shows as a Live Update (status chip, segmented progress) when the user allows it; the SDK's manifest merges the `POST_PROMOTED_NOTIFICATIONS` permission it needs, a normal permission granted at install. Taps open the activity's link like a push's, through `setLinkHandler` when one is set. See the [Android SDK README](https://github.com/pushpilotai/pushpilot-android#live-activities).
+**Android: nothing to add.** The Android SDK 2.1.1 draws each live activity as one ongoing notification on a "Live updates" channel, from the same receiver that shows your other PushPilot pushes. On Android 16 an activity sent as promoted shows as a Live Update (status chip, segmented progress) when the user allows it; the SDK's manifest merges the `POST_PROMOTED_NOTIFICATIONS` permission it needs, a normal permission granted at install. Taps open the activity's link like a push's, through `setLinkHandler` when one is set. See the [Android SDK README](https://github.com/pushpilotai/pushpilot-android#live-activities).
 
 **iOS: a Widget Extension.** Live activities started by push need iOS 17.2 or later; the app itself still runs on iOS 15. In Xcode (`ios/Runner.xcworkspace`):
 
@@ -252,7 +252,7 @@ The iOS SDK ships its own privacy manifest, which Xcode merges into your app's p
 
 The native SDKs are not published, so the plugin builds them from sibling checkouts next to this repository: `../pushpilot-android` and `../pushpilot-ios`. Each switch to the published artifact is one marked spot.
 
-**Android.** The plugin depends on `ai.pushpilot:sdk:2.1.0` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
+**Android.** The plugin depends on `ai.pushpilot:sdk:2.1.1` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
 
 ```bash
 cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
@@ -260,7 +260,7 @@ cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
 
 At release: publish the SDK to Maven Central and delete the `mavenLocal()` line.
 
-**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.1.0")`. The example's Notification Service and Live Activity extensions also use the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
+**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.1.1")`. The example's Notification Service and Live Activity extensions also use the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
 
 **iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The plugin's podspec depends on the `PushPilot` pod, which `PushPilot.podspec` in the `pushpilot-ios` checkout provides. It contains the `PushPilot` library and depends on the `PushPilotLive` pod (`PushPilotLive.podspec`; add `pod 'PushPilotLive', :path => '<path to pushpilot-ios>'` to the Widget Extension's target too). Add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
 
