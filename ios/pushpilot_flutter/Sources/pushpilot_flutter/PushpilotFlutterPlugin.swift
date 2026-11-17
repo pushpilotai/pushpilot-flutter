@@ -99,14 +99,15 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCy
     case "init":
       let args = call.arguments as? [String: Any] ?? [:]
       let sdkKey = args["sdkKey"] as? String ?? ""
+      let appGroup = args["appGroup"] as? String
       if let baseUrl = args["baseUrl"] as? String {
         // Falling back to the default server would send a self-hosted app's data elsewhere, so refuse.
         guard let url = URL(string: baseUrl) else {
           return result(FlutterError(code: "invalid_base_url", message: "baseUrl is not a URL", details: nil))
         }
-        PushPilot.initialize(sdkKey: sdkKey, baseUrl: url)
+        PushPilot.initialize(sdkKey: sdkKey, baseUrl: url, appGroup: appGroup)
       } else {
-        PushPilot.initialize(sdkKey: sdkKey)
+        PushPilot.initialize(sdkKey: sdkKey, appGroup: appGroup)
       }
       gate.start()
     case "setPushToken":
@@ -130,6 +131,11 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCy
       dartHandlesLinks = call.arguments as? Bool ?? false
     case "setTapHandler":
       dartHandlesTaps = call.arguments as? Bool ?? false
+    case "handleLiveActivityURL":
+      // A live activity tap is counted and its own link returned (nil: none); other URLs come back unchanged.
+      guard let link = call.arguments as? String else { return result(badArguments) }
+      guard let url = URL(string: link) else { return result(link) }
+      return result(PushPilot.handleLiveActivityURL(url)?.absoluteString)
     default:
       return result(FlutterMethodNotImplemented)
     }

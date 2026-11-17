@@ -1,0 +1,2 @@
+// Gives the extension the app's version and build number from pubspec.yaml, as App Store Connect requires.
+#include "../Flutter/Generated.xcconfig"

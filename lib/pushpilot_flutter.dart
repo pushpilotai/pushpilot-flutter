@@ -11,9 +11,27 @@ class PushPilot {
   static void Function(TappedNotification tap)? _tapHandler;
 
   /// Starts the SDK with the app's public SDK key. Call once at launch; later calls are ignored.
-  /// [baseUrl] is only needed for a self-hosted server.
-  static Future<void> init(String sdkKey, {String? baseUrl}) =>
-      _call('init', {'sdkKey': sdkKey, 'baseUrl': baseUrl});
+  /// [baseUrl] is only needed for a self-hosted server. [appGroup] (iOS) is the App Group shared with your
+  /// Widget Extension, so images in live activity layouts can be shown; pass the same id to
+  /// `PushPilotLiveActivityWidget(appGroup:)`. Android ignores it.
+  static Future<void> init(String sdkKey, {String? baseUrl, String? appGroup}) => _call('init', {
+        'sdkKey': sdkKey,
+        'baseUrl': baseUrl,
+        'appGroup': ?appGroup,
+      });
+
+  /// Pass every URL your app is opened with. For a tap on an iOS live activity it records the click once
+  /// and returns the activity's own link without PushPilot's marker, or null when the activity has none
+  /// (just show the app). Any other URL, and every URL on Android, comes back unchanged. Never throws: on a
+  /// failure it returns [url] as given.
+  static Future<String?> handleLiveActivityURL(String url) async {
+    try {
+      return await _channel.invokeMethod<String>('handleLiveActivityURL', url);
+    } catch (e) {
+      if (kDebugMode) debugPrint('PushPilot.handleLiveActivityURL failed: $e');
+      return url;
+    }
+  }
 
   /// Android only: passes the device's FCM push address; null clears it. With firebase_messaging 17 or later
   /// that is the Firebase Installation ID from `onRegistered` after `register()`; on older versions it is the

@@ -22,7 +22,10 @@ Future<void> main() async {
   // Before init, so the link and data of a tap that launched the app arrive here too.
   await PushPilot.setLinkHandler((url) => lastLink.value = url);
   await PushPilot.setTapHandler((tap) => lastTap.value = '${tap.notificationId} ${tap.data}');
-  await PushPilot.init(sdkKey, baseUrl: baseUrl.isEmpty ? null : baseUrl);
+  // The App Group shared with the LiveActivity Widget Extension (iOS), for images in live activities.
+  await PushPilot.init(sdkKey,
+      baseUrl: baseUrl.isEmpty ? null : baseUrl, appGroup: 'group.ai.pushpilot.pushpilotFlutterExample');
+  WidgetsBinding.instance.addObserver(OpenedLinks());
   runApp(const ExampleApp());
   // iOS needs nothing here: the plugin hands PushPilot the APNs device token itself.
   if (defaultTargetPlatform == TargetPlatform.android) await forwardPushToken();
@@ -43,6 +46,18 @@ Future<void> forwardPushToken() async {
     await messaging.register();
   } catch (e) {
     debugPrint('No push address (Firebase not configured or unavailable): $e');
+  }
+}
+
+/// Passes each URL the app is opened with (Flutter's deep links) through PushPilot, so a tap on a live
+/// activity is counted and comes back as the activity's own link.
+class OpenedLinks with WidgetsBindingObserver {
+  /// Shows the link a live activity tap carried (null: it just opens the app). Route to a screen here.
+  @override
+  Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
+    final link = await PushPilot.handleLiveActivityURL(routeInformation.uri.toString());
+    lastLink.value = link ?? 'the app (no link)';
+    return true; // this example has no other routes
   }
 }
 

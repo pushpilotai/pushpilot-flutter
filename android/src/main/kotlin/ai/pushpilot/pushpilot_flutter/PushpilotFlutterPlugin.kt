@@ -69,6 +69,8 @@ class PushpilotFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, A
             "forget" -> PushPilot.forget()
             "setLinkHandler" -> Bridge.routeLinksToDart(call.arguments as Boolean)
             "setTapHandler" -> Bridge.dartHandlesTaps = call.arguments as Boolean
+            // The SDK opens live activity links itself on Android (the App Group in "init" is iOS only).
+            "handleLiveActivityURL" -> return result.success(call.arguments as String)
             else -> return result.notImplemented()
         }
         result.success(null)

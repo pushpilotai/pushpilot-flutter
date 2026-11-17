@@ -16,7 +16,7 @@ Release only after the native SDKs of the same version are public: `ai.pushpilot
 2. Switch from the local native SDKs to the published ones:
    - `ios/pushpilot_flutter/Package.swift`: replace the marked local `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "<version>")`.
    - `example/android/build.gradle.kts`: delete the `mavenLocal()` line.
-   - `example/ios/Runner.xcodeproj`: switch the extension's local `pushpilot-ios` package to `https://github.com/pushpilotai/pushpilot-ios`.
+   - `example/ios/Runner.xcodeproj`: switch the extensions' local `pushpilot-ios` package (one reference, shared by NotificationService and LiveActivity) to `https://github.com/pushpilotai/pushpilot-ios`.
    - `pubspec.yaml`: delete the `publish_to: none` line.
    - `README.md`: update *Local development* to say how to point back at local checkouts.
 3. Checks pass:
