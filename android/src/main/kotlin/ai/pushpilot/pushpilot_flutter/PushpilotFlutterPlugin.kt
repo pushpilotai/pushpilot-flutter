@@ -65,6 +65,8 @@ class PushpilotFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, A
         when (call.method) {
             "init" -> {
                 PushPilot.init(context, call.argument<String>("sdkKey")!!, call.argument<String>("baseUrl"))
+                // Dart's init runs after the activity resumed, which the SDK's lifecycle watcher missed.
+                activity?.activity?.let(PushPilot::setCurrentActivity)
                 // This engine's Dart is now ready for the taps and links that waited.
                 Bridge.channel = channel
                 Bridge.gate.start()
