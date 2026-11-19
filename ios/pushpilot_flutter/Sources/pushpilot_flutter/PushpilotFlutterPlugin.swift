@@ -12,12 +12,17 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCy
   private var dartHandlesLinks = false
   private var dartHandlesTaps = false
   private var channel: FlutterMethodChannel?
+  /// Gives the Flutter view controller whose view holds the coach-mark stand-ins; the engine owns it.
+  private weak var registrar: FlutterPluginRegistrar?
+  /// Stand-ins for Dart's PushPilotMark widgets by name: transparent views the SDK can point coach marks at.
+  private(set) var marks: [String: UIView] = [:]
 
   /// Listens on the channel the Dart side calls and on the app's delegate calls.
   public static func register(with registrar: FlutterPluginRegistrar) {
     let plugin = PushpilotFlutterPlugin()
     let channel = FlutterMethodChannel(name: "ai.pushpilot/sdk", binaryMessenger: registrar.messenger())
     plugin.channel = channel
+    plugin.registrar = registrar
     registrar.addMethodCallDelegate(plugin, channel: channel)
     registrar.addApplicationDelegate(plugin)
     // With scenes, the tap that launches a killed app arrives with the scene connection.
@@ -136,10 +141,48 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCy
       guard let link = call.arguments as? String else { return result(badArguments) }
       guard let url = URL(string: link) else { return result(link) }
       return result(PushPilot.handleLiveActivityURL(url)?.absoluteString)
+    case "showInApp":
+      guard let name = call.arguments as? String else { return result(badArguments) }
+      // Flutter calls plugins on the main thread, where the SDK's in-app calls must run.
+      return result(MainActor.assumeIsolated { PushPilot.showInApp(name) })
+    case "markView":
+      guard let args = call.arguments as? [String: Any], let name = args["name"] as? String,
+            let x = args["x"] as? Double, let y = args["y"] as? Double,
+            let width = args["width"] as? Double, let height = args["height"] as? Double else {
+        return result(badArguments)
+      }
+      // No view controller (a headless engine): nothing on screen to point at.
+      if let host = registrar?.viewController?.view {
+        mark(name, at: CGRect(x: x, y: y, width: width, height: height), in: host)
+      }
+    case "unmarkView":
+      guard let name = call.arguments as? String else { return result(badArguments) }
+      unmark(name)
     default:
       return result(FlutterMethodNotImplemented)
     }
     result(nil)
+  }
+}
+
+extension PushpilotFlutterPlugin {
+  /// Places the stand-in for a PushPilotMark at `rect` (points from the Flutter view's top left) in `host`, the
+  /// Flutter view, and names it for the SDK. It draws nothing and takes no touches, so Flutter's UI works as
+  /// before; it stays opaque to the SDK's visibility check (alpha 1, clear background). Main thread only.
+  func mark(_ name: String, at rect: CGRect, in host: UIView) {
+    let view = marks[name] ?? UIView()
+    view.isUserInteractionEnabled = false
+    view.backgroundColor = .clear
+    if view.superview !== host { host.addSubview(view) }
+    view.frame = rect
+    marks[name] = view
+    MainActor.assumeIsolated { PushPilot.markView(view, name: name) }
+  }
+
+  /// Forgets the mark `name` in the SDK and removes its stand-in. Main thread only.
+  func unmark(_ name: String) {
+    MainActor.assumeIsolated { PushPilot.unmarkView(name: name) }
+    marks.removeValue(forKey: name)?.removeFromSuperview()
   }
 }
 

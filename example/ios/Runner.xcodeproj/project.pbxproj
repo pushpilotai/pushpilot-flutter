@@ -22,6 +22,7 @@
 		A331148C5588C9AEA18E01EB /* LiveActivityWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF769987A3502B39F21CB955 /* LiveActivityWidgets.swift */; };
 		A72496089D1184DB5F813270 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D243AB5451D902D43CBD1B2D /* NotificationService.swift */; };
 		C86745AF8B571D49ACE2719B /* LiveActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5D183C9AAE23531CCFBECB /* LiveActivityTests.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* InAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* InAppTests.swift */; };
 		E45ADB53538DEF7556BE4884 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3E12086ADE0CFF253B7F9427 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E92414B1A5F5C8A6ADEDB6E1 /* PushPilotNotificationService in Frameworks */ = {isa = PBXBuildFile; productRef = 2E7BF8FDFD1524A64165E820 /* PushPilotNotificationService */; };
 /* End PBXBuildFile section */
@@ -79,6 +80,7 @@
 		0158D8C4EE9AEB1E21C07A55 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		096966679F44DA3665282A6F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		0C5D183C9AAE23531CCFBECB /* LiveActivityTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LiveActivityTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* InAppTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InAppTests.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1832D13E3815E35CCF0CDCB7 /* LiveActivity.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = LiveActivity.xcconfig; sourceTree = "<group>"; };
@@ -142,6 +144,7 @@
 			children = (
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 				0C5D183C9AAE23531CCFBECB /* LiveActivityTests.swift */,
+				A1B2C3D4E5F60718293A4B5D /* InAppTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -454,6 +457,7 @@
 			files = (
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 				C86745AF8B571D49ACE2719B /* LiveActivityTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* InAppTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

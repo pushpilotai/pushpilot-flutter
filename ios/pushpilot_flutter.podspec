@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.source_files     = 'pushpilot_flutter/Sources/pushpilot_flutter/**/*'
   s.dependency 'Flutter'
   # From CocoaPods trunk; for local development the app's Podfile points it at a pushpilot-ios checkout (see README).
-  s.dependency 'PushPilot', '2.1.1'
+  s.dependency 'PushPilot', '2.2.0'
   s.platform = :ios, '15.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.9'

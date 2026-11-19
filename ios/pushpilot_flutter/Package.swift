@@ -5,7 +5,7 @@ import PackageDescription
 
 // Local development only: the native iOS SDK is the sibling checkout `pushpilot-ios`. Flutter reaches this
 // manifest through a symlink, so the path is resolved from the real file. At release replace this line and
-// the `pushPilot` use below with `.package(url: "<pushpilot-ios repository URL>", from: "2.1.1")`.
+// the `pushPilot` use below with `.package(url: "<pushpilot-ios repository URL>", from: "2.2.0")`.
 let pushPilot = Package.Dependency.package(path: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath()
     .deletingLastPathComponent().appendingPathComponent("../../../pushpilot-ios").standardized.path)
 
