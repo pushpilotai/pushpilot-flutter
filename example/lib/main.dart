@@ -16,6 +16,10 @@ const permission = MethodChannel('pushpilot_example/permission');
 final lastLink = ValueNotifier<String?>(null);
 final lastTap = ValueNotifier<String?>(null);
 
+/// The in-app trigger name the Show in-app button uses, and what the last showInApp call answered.
+final trigger = TextEditingController(text: 'checkout');
+final lastInApp = ValueNotifier<String?>(null);
+
 /// Sets the link and tap handlers, starts PushPilot, then the UI; on Android also forwards the FCM address.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,6 +83,19 @@ class ExampleApp extends StatelessWidget {
             button('Set topics', () => PushPilot.setTopics(['news', 'offers'])),
             button('Log out', PushPilot.logout),
             button('Forget this device', PushPilot.forget),
+            TextField(controller: trigger, decoration: const InputDecoration(labelText: 'In-app trigger name')),
+            // Also a coach-mark target: a coach-mark message aimed at "example_show_in_app" points here.
+            PushPilotMark(
+              name: 'example_show_in_app',
+              child: button('Show in-app message', () async {
+                final shown = await PushPilot.showInApp(trigger.text.trim());
+                return lastInApp.value = shown ? 'shown' : 'none eligible';
+              }),
+            ),
+            ValueListenableBuilder(
+              valueListenable: lastInApp,
+              builder: (context, result, _) => Text('Last in-app: ${result ?? 'none'}'),
+            ),
             ValueListenableBuilder(
               valueListenable: lastLink,
               builder: (context, link, _) => Text('Last link: ${link ?? 'none'}'),
