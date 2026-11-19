@@ -1,3 +1,11 @@
+## 2.2.0 (unreleased)
+
+* Wraps the PushPilot Android and iOS SDKs 2.2.0, which show in-app messages from the dashboard: HTML pages over the app, on app open with no Dart code.
+* `showInApp(name) → Future<bool>`: shows the first eligible cached message with that in-app trigger name, on the platform's main thread; `true` when one is now on screen.
+* `PushPilotMark(name:, child:)`: names a widget as a coach-mark target. The plugin keeps a transparent, untouchable native view at the widget's rect inside the Flutter view and marks it with the native `markView`.
+* Links opened by in-app messages reach `setLinkHandler`'s handler, like a tapped push's; without one the system opens them.
+* Example: a Show in-app button with a trigger name field, marked as a coach-mark target.
+
 ## 2.1.1 (unreleased)
 
 * Wraps the PushPilot Android and iOS SDKs 2.1.1, which show live activities started by push with no Dart code: Android draws them as ongoing notifications (promoted Live Updates on Android 16), iOS 17.2+ as Live Activities through a Widget Extension.

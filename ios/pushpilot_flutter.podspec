@@ -1,7 +1,7 @@
 # CocoaPods spec for apps that build iOS with CocoaPods instead of Swift Package Manager.
 Pod::Spec.new do |s|
   s.name             = 'pushpilot_flutter'
-  s.version          = '2.1.1'
+  s.version          = '2.2.0'
   s.summary          = 'Flutter plugin for the PushPilot SDK.'
   s.homepage         = 'https://pushpilot.ai'
   s.author           = { 'PushPilot' => 'https://pushpilot.ai' }

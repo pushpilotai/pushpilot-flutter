@@ -4,7 +4,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 - Android and iOS. Needs Flutter 3.47 or later and Dart 3.13 or later (built and tested with Flutter 3.47.1, Dart 3.13.1).
 - Android 7.0 (API 24) and later, the minimum for current Flutter (the native SDK itself supports API 23). iOS 15 and later.
-- A thin layer over the native PushPilot SDKs 2.1.1 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
+- A thin layer over the native PushPilot SDKs 2.2.0 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
 - No Firebase dependency. On Android your app keeps its own Firebase setup and hands PushPilot the FCM push address; on iOS the plugin uses APNs directly and needs no Firebase at all.
 - Never asks for notification permission. No call ever throws; problems are logged in debug builds.
 
@@ -12,7 +12,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 ```yaml
 dependencies:
-  pushpilot_flutter: ^2.1.1
+  pushpilot_flutter: ^2.2.0
 ```
 
 ## Integrate
@@ -214,6 +214,42 @@ From 2.1.1, PushPilot can start, update and end live activities by push, from th
 
 The SDK watches PushPilot activities while the app runs and reports their tokens and state to PushPilot. `example/ios/LiveActivity/` is a working extension built this way.
 
+### In-app messages
+
+From 2.2.0 the native SDKs show in-app messages made on the dashboard: a modal, full screen, bottom sheet, top banner, slide-up card, carousel or a coach mark pointing at one of your widgets. Each is an HTML page drawn in a transparent, locked-down web view over your app. The native SDKs fetch, cache, pick and show them, and report `shown`, `clicked` and `dismissed`; the plugin only passes calls through. Details: [Android SDK](https://github.com/pushpilotai/pushpilot-android#in-app-messages), [iOS SDK](https://github.com/pushpilotai/pushpilot-ios#in-app-messages).
+
+1. **Nothing to add for app-open messages.** With `init` called as above, the SDK fetches the messages this installation may see when the app comes to the foreground (at most once a minute, after the installation's first sync), downloads each page with its images and fonts, and shows the first eligible "app open" message on a later foreground. A message shows only from the cache, never from the network.
+2. **Named moments.** For a message whose trigger is an in-app call, call `showInApp` with its name where it should appear:
+
+   ```dart
+   onPressed: () async {
+     final shown = await PushPilot.showInApp('checkout'); // true: a message is now on screen
+     // ...your own checkout code
+   },
+   ```
+
+   The plugin runs it on the platform's main thread, as the native SDKs require. It answers `false` when no cached message is eligible, another message is on screen, the message is past its cap per device or outside its dates, or the SDK has not started. It never throws.
+3. **Coach marks.** Wrap the widget a coach mark points at in `PushPilotMark`, with the name the message's target uses in the dashboard:
+
+   ```dart
+   PushPilotMark(
+     name: 'compose',
+     child: FloatingActionButton(onPressed: compose, child: const Icon(Icons.edit)),
+   )
+   ```
+
+   A Flutter widget has no native view of its own, so after each frame the mark sends its rect to the plugin when it moved or resized. The plugin keeps a transparent native view at that rect inside the Flutter view (in the `FlutterView` on Android, the `FlutterViewController`'s view on iOS) that draws nothing and takes no touches or accessibility focus, and names it with the native `markView`. The mark is removed while its route is covered by another route and when the widget is disposed (`unmarkView`). A later mark with the same name replaces an earlier one. The native rules then apply: the coach mark shows only while the view is on screen (on iOS wholly, on Android at least partly); otherwise the message waits.
+4. **Links.** A message's button opens its link through the native SDK: the message closes and the link goes to your `setLinkHandler` handler, exactly like a tapped push's link, so you route it in Dart. Without a handler the system opens it. `javascript:`, `data:`, `file:` and `blob:` links are refused.
+
+Limits of the coach-mark stand-in:
+
+- It follows the widget frame by frame, so while a coach mark is on screen and the user scrolls or animates the widget, the stand-in moves but the open message keeps pointing at the place it opened at (the native SDKs read the target once, when the message shows).
+- The rect ignores clipping and what is drawn over the widget: a widget scrolled under an app bar or covered by an overlay in the same route still counts as on screen.
+- Only the first Flutter view is used: on Android the first `FlutterView` in the activity, on iOS the registrar's view controller. Apps with several Flutter views (add-to-app) get marks placed in that one only.
+- On Android, after a configuration change (rotation) the stand-in moves to the new `FlutterView` with the next rect the mark sends; a widget that ends up at exactly the same rect stays unmarked until it moves.
+
+On Android, the native SDK learns which activity is in the foreground from the moment it is initialised, and Dart's `init` runs after Flutter's activity has already resumed. So after a cold start, app-open messages and `showInApp` wait until the app next comes to the foreground (or another activity resumes). iOS reads the foreground state at `init` and has no such delay.
+
 ### Moving from 1.x
 
 - Android: remove any code that showed PushPilot pushes yourself; the plugin now shows them. Keep `setPushToken`. Read tapped-push data with `setTapHandler`, not from your activity's intent extras: the native SDK no longer puts it there under your own keys.
@@ -235,6 +271,8 @@ All methods are static on `PushPilot`. Each returns a `Future` that completes on
 | `handleMessage(Map<String, dynamic> data) → bool` | Returns `true` when a push came from PushPilot (its data has `source` = `pushpilot`). Use it to skip PushPilot pushes in your own Firebase handlers; the plugin already shows them. Answered in Dart, so it works in a background isolate and needs no `init`. |
 | `setLinkHandler(void Function(String url)? handler)` | Sends the link of a tapped PushPilot push or button to `handler` instead of letting the system open it. `null` lets the system open links again. Set it before `init` to also get the link of the tap that launched the app; each link arrives once. |
 | `handleLiveActivityURL(String url) → Future<String?>` | For a URL your app was opened with: a tap on an iOS live activity is counted once and returns the activity's own link without PushPilot's marker, or `null` when it has none. Any other URL, and every URL on Android, comes back unchanged. Never throws. See [Live activities](#live-activities). |
+| `showInApp(String name) → Future<bool>` | Shows the first eligible cached [in-app message](#in-app-messages) whose trigger is `name`, on the platform's main thread; `true` when one is now on screen. Never throws. |
+| `PushPilotMark({required String name, required Widget child})` | A widget, not a method: names `child` as the coach-mark target `name`. See [In-app messages](#in-app-messages). |
 | `setTapHandler(void Function(TappedNotification tap)? handler)` | Sends each tap that opened the app to `handler`, with `tap.notificationId` and `tap.data` (the push's custom data, `Map<String, String>`). `null` stops them. Set it before `init` to also get the tap that launched the app; each tap arrives once. |
 
 Invalid values are dropped by the native SDK with a log message instead of being sent.
@@ -252,7 +290,7 @@ The iOS SDK ships its own privacy manifest, which Xcode merges into your app's p
 
 The native SDKs are not published, so the plugin builds them from sibling checkouts next to this repository: `../pushpilot-android` and `../pushpilot-ios`. Each switch to the published artifact is one marked spot.
 
-**Android.** The plugin depends on `ai.pushpilot:sdk:2.1.1` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
+**Android.** The plugin depends on `ai.pushpilot:sdk:2.2.0` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
 
 ```bash
 cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
@@ -260,7 +298,7 @@ cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
 
 At release: publish the SDK to Maven Central and delete the `mavenLocal()` line.
 
-**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.1.1")`. The example's Notification Service and Live Activity extensions also use the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
+**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.2.0")`. The example's Notification Service and Live Activity extensions also use the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
 
 **iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The plugin's podspec depends on the `PushPilot` pod, which `PushPilot.podspec` in the `pushpilot-ios` checkout provides. It contains the `PushPilot` library and depends on the `PushPilotLive` pod (`PushPilotLive.podspec`; add `pod 'PushPilotLive', :path => '<path to pushpilot-ios>'` to the Widget Extension's target too). Add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
 
@@ -274,7 +312,7 @@ The full release order is in [RELEASING.md](RELEASING.md).
 
 ## Example app
 
-`example/` sets a link handler and a tap handler and initialises PushPilot at launch, shows the last tapped link and tap, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). For live activities it passes the App Group `group.ai.pushpilot.pushpilotFlutterExample` to `init` and every opened URL through `handleLiveActivityURL` (the screen shows the link that comes back), and on iOS it has `NSSupportsLiveActivities`, the App Group on both targets, and a `LiveActivity` Widget Extension (`example/ios/LiveActivity/`) linking `PushPilotLive` from the local pushpilot-ios package. It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
+`example/` sets a link handler and a tap handler and initialises PushPilot at launch, shows the last tapped link and tap, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). For live activities it passes the App Group `group.ai.pushpilot.pushpilotFlutterExample` to `init` and every opened URL through `handleLiveActivityURL` (the screen shows the link that comes back), and on iOS it has `NSSupportsLiveActivities`, the App Group on both targets, and a `LiveActivity` Widget Extension (`example/ios/LiveActivity/`) linking `PushPilotLive` from the local pushpilot-ios package. For in-app messages it has a trigger name field and a **Show in-app message** button that calls `showInApp` and shows the answer; the button is wrapped in `PushPilotMark(name: 'example_show_in_app')`, so a coach mark aimed at that name points at it. It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
 
 1. Android: put your `google-services.json` in `example/android/app/` (the Google services Gradle plugin is applied only when the file exists), with an application id registered in your Firebase project. It is git-ignored; never commit it.
 2. iOS: set your signing team, bundle ids and an App Group you own for all three targets (the extensions' bundle ids must start with the app's), and add your APNs key to the PushPilot app.
@@ -296,7 +334,7 @@ On the iOS simulator the app gets a device token once you allow notifications, a
 flutter analyze && flutter test
 ```
 
-The Dart tests mock the platform channel and check that every call sends the right method and arguments, and that links and taps from native reach the handlers. The native glue that holds taps and links until `init` and passes each tap once is tested on both platforms: Android with `cd example/android && ./gradlew :pushpilot_flutter:testDebugUnitTest`, iOS (also `setPushToken` being refused) in `example/ios/RunnerTests`. `handleLiveActivityURL` is tested on both, the iOS side against the real SDK's link parsing:
+The Dart tests mock the platform channel and check that every call sends the right method and arguments, and that links and taps from native reach the handlers. The native glue that holds taps and links until `init` and passes each tap once is tested on both platforms: Android with `cd example/android && ./gradlew :pushpilot_flutter:testDebugUnitTest`, iOS (also `setPushToken` being refused) in `example/ios/RunnerTests`. `handleLiveActivityURL` is tested on both, the iOS side against the real SDK's link parsing. For in-app messages, the Dart tests check `showInApp`'s answers and the rects `PushPilotMark` sends (after layout, on a move, on dispose, under a covering route); `example/ios/RunnerTests` checks the iOS stand-in views and `showInApp` through the channel:
 
 ```bash
 cd example/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RunnerTests

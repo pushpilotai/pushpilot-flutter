@@ -1,6 +1,6 @@
 name: pushpilot_flutter
 description: "Registers the app installation with PushPilot and shows its pushes, through the native PushPilot SDKs."
-version: 2.1.1
+version: 2.2.0
 homepage: https://pushpilot.ai
 repository: https://github.com/pushpilotai/pushpilot-flutter
 issue_tracker: https://github.com/pushpilotai/pushpilot-flutter/issues

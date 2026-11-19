@@ -1,5 +1,5 @@
 group = "ai.pushpilot.pushpilot_flutter"
-version = "2.1.1"
+version = "2.2.0"
 
 buildscript {
     val kotlinVersion = "2.4.0"
