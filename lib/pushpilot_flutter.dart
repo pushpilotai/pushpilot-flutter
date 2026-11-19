@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 /// PushPilot SDK for Flutter. Every call goes straight to the native PushPilot SDK, which does
 /// all syncing, retrying, storage and validation. No call ever throws.
@@ -78,6 +80,19 @@ class PushPilot {
     return _call('setTapHandler', handler != null);
   }
 
+  /// Shows the first eligible cached in-app message whose trigger is [name], on the platform's main thread,
+  /// and returns whether one is now on screen. False when none is cached and eligible, another message is
+  /// showing, the SDK has not started, or the call failed. No network call; never throws. Links the message
+  /// opens go to [setLinkHandler]'s handler, like a tapped push's.
+  static Future<bool> showInApp(String name) async {
+    try {
+      return await _channel.invokeMethod<bool>('showInApp', name) ?? false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('PushPilot.showInApp failed: $e');
+      return false;
+    }
+  }
+
   /// Receives the native side's calls: a tapped link or a tap, for the handlers.
   static Future<void> _onNativeCall(MethodCall call) async {
     switch (call.method) {
@@ -110,4 +125,87 @@ class TappedNotification {
 
   /// The push's custom data from the dashboard; empty when it had none.
   final Map<String, String> data;
+}
+
+/// Names [child] for coach-mark in-app messages whose target is [name], the Flutter form of the native
+/// `markView`. After each frame it sends the child's rect to the plugin, which keeps a transparent native
+/// view at that spot for the SDK to point at; it unmarks while its route is covered and when it is removed.
+/// A later mark with the same name replaces an earlier one.
+class PushPilotMark extends StatefulWidget {
+  /// Marks [child] as [name].
+  const PushPilotMark({super.key, required this.name, required this.child});
+
+  /// The coach-mark target name the dashboard's message asks for.
+  final String name;
+
+  /// The widget the coach mark points at.
+  final Widget child;
+
+  /// Creates the state that reports the child's rect.
+  @override
+  State<PushPilotMark> createState() => _PushPilotMarkState();
+}
+
+class _PushPilotMarkState extends State<PushPilotMark> {
+  // The mark that last placed each name, so an old mark going away leaves a newer one in place.
+  static final _owners = <String, _PushPilotMarkState>{};
+  Rect? _sent;
+  bool _routeIsCurrent = true;
+
+  /// Reports the rect once the first frame is laid out.
+  @override
+  void initState() {
+    super.initState();
+    SchedulerBinding.instance.addPostFrameCallback(_report);
+  }
+
+  /// A new name: removes the old one; the next frame places the new one.
+  @override
+  void didUpdateWidget(PushPilotMark oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.name != widget.name) _unmark(oldWidget.name);
+  }
+
+  /// Removes the native mark with the widget.
+  @override
+  void dispose() {
+    _unmark(widget.name);
+    super.dispose();
+  }
+
+  /// After each frame: sends the child's global rect when it moved or resized, or unmarks while it has no
+  /// size or its route is covered. Frames only run while something changes, so an idle screen costs nothing.
+  void _report(Duration _) {
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final rect = _routeIsCurrent && box != null && box.attached && box.hasSize
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    if (rect != _sent) {
+      if (rect == null) {
+        _unmark(widget.name);
+      } else {
+        _owners[widget.name] = this;
+        PushPilot._call('markView',
+            {'name': widget.name, 'x': rect.left, 'y': rect.top, 'width': rect.width, 'height': rect.height});
+        _sent = rect;
+      }
+    }
+    SchedulerBinding.instance.addPostFrameCallback(_report);
+  }
+
+  /// Tells the plugin to drop [name], unless a newer mark has taken it.
+  void _unmark(String name) {
+    _sent = null;
+    if (_owners[name] != this) return;
+    _owners.remove(name);
+    PushPilot._call('unmarkView', name);
+  }
+
+  /// Returns the child; also notes whether its route is the top one (a covered screen is not a target).
+  @override
+  Widget build(BuildContext context) {
+    _routeIsCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    return widget.child;
+  }
 }
