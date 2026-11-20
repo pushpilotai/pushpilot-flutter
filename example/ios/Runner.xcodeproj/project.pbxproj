@@ -359,7 +359,7 @@
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
 				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
-				F94C4A094594FC1AC9B02157 /* XCLocalSwiftPackageReference "pushpilot-ios" */,
+				F94C4A094594FC1AC9B02157 /* XCRemoteSwiftPackageReference "pushpilot-ios" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -1018,21 +1018,28 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};
-		F94C4A094594FC1AC9B02157 /* XCLocalSwiftPackageReference "pushpilot-ios" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../../pushpilot-ios";
-		};
 /* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F94C4A094594FC1AC9B02157 /* XCRemoteSwiftPackageReference "pushpilot-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pushpilotai/pushpilot-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		2E7BF8FDFD1524A64165E820 /* PushPilotNotificationService */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F94C4A094594FC1AC9B02157 /* XCLocalSwiftPackageReference "pushpilot-ios" */;
+			package = F94C4A094594FC1AC9B02157 /* XCRemoteSwiftPackageReference "pushpilot-ios" */;
 			productName = PushPilotNotificationService;
 		};
 		41767F99F2F7B7F2B6706AEB /* PushPilotLive */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F94C4A094594FC1AC9B02157 /* XCLocalSwiftPackageReference "pushpilot-ios" */;
+			package = F94C4A094594FC1AC9B02157 /* XCRemoteSwiftPackageReference "pushpilot-ios" */;
 			productName = PushPilotLive;
 		};
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {

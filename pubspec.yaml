@@ -4,7 +4,6 @@ version: 2.2.0
 homepage: https://pushpilot.ai
 repository: https://github.com/pushpilotai/pushpilot-flutter
 issue_tracker: https://github.com/pushpilotai/pushpilot-flutter/issues
-publish_to: none # Not published yet; remove this line at release.
 
 environment:
   sdk: ^3.13.0

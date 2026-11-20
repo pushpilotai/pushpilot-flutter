@@ -1,4 +1,4 @@
-## 2.2.0 (unreleased)
+## 2.2.0 (2026-11-20)
 
 * Wraps the PushPilot Android and iOS SDKs 2.2.0, which show in-app messages from the dashboard: HTML pages over the app, on app open with no Dart code.
 * Android: init hands the current activity to the SDK, so an app-open message shows and `showInApp` works in the first foreground after a cold start.
@@ -7,7 +7,7 @@
 * Links opened by in-app messages reach `setLinkHandler`'s handler, like a tapped push's; without one the system opens them.
 * Example: a Show in-app button with a trigger name field, marked as a coach-mark target.
 
-## 2.1.1 (unreleased)
+## 2.1.1 (never published; shipped in 2.2.0)
 
 * Wraps the PushPilot Android and iOS SDKs 2.1.1, which show live activities started by push with no Dart code: Android draws them as ongoing notifications (promoted Live Updates on Android 16), iOS 17.2+ as Live Activities through a Widget Extension.
 * `init(sdkKey, appGroup: ...)`: the App Group shared with the iOS Widget Extension, for images in live activity layouts. Ignored on Android.

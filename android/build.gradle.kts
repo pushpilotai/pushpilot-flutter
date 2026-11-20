@@ -54,8 +54,8 @@ kotlin {
 }
 
 dependencies {
-    // Native PushPilot Android SDK. Until it is on Maven Central, run `./gradlew :sdk:publishToMavenLocal`
-    // in pushpilot-android and add mavenLocal() to the app's repositories (see README).
+    // Native PushPilot Android SDK from Maven Central. To build a local pushpilot-android checkout,
+    // see README -> Local development.
     implementation("ai.pushpilot:sdk:2.2.0")
     testImplementation("junit:junit:4.13.2")
 }

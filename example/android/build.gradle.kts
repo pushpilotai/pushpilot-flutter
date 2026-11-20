@@ -2,8 +2,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Local development only: the native PushPilot SDK comes from `publishToMavenLocal`. Remove at release.
-        mavenLocal()
     }
 }
 

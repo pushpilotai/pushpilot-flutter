@@ -288,31 +288,45 @@ The iOS SDK ships its own privacy manifest, which Xcode merges into your app's p
 
 ## Local development
 
-The native SDKs are not published, so the plugin builds them from sibling checkouts next to this repository: `../pushpilot-android` and `../pushpilot-ios`. Each switch to the published artifact is one marked spot.
+The plugin and its example use the published native SDKs: `ai.pushpilot:sdk` from Maven Central and `https://github.com/pushpilotai/pushpilot-ios` from its tags. To work against unreleased changes in the native SDKs, check them out beside this repository:
 
-**Android.** The plugin depends on `ai.pushpilot:sdk:2.2.0` (`android/build.gradle.kts`). Publish it to your local Maven repository and add `mavenLocal()` to the app's repositories (the example does this in `example/android/build.gradle.kts`):
+```
+pushpilot-sdks/
+  pushpilot-android/
+  pushpilot-ios/
+  pushpilot-flutter/
+```
+
+and switch these places locally (don't commit them):
+
+**Android.** The plugin depends on `ai.pushpilot:sdk:2.2.0` (`android/build.gradle.kts`). Publish your working copy to your local Maven repository and add `mavenLocal()` to the app's repositories (for the example, in `allprojects { repositories { ... } }` of `example/android/build.gradle.kts`):
 
 ```bash
 cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
 ```
 
-At release: publish the SDK to Maven Central and delete the `mavenLocal()` line.
+**iOS with Swift Package Manager** (Flutter's default). In `ios/pushpilot_flutter/Package.swift`, replace the `pushPilot` line with a local path. Flutter reaches this manifest through a symlink, so resolve the path from the real file:
 
-**iOS with Swift Package Manager** (Flutter's default). `ios/pushpilot_flutter/Package.swift` depends on `../pushpilot-ios` by local path, so it builds your working copy. At release: replace the marked `pushPilot` line with `.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.2.0")`. The example's Notification Service and Live Activity extensions also use the local checkout (`../../../pushpilot-ios` in `example/ios/Runner.xcodeproj`); switch it to the repository URL the same way.
+```swift
+let pushPilot = Package.Dependency.package(path: URL(fileURLWithPath: #filePath).resolvingSymlinksInPath()
+    .deletingLastPathComponent().appendingPathComponent("../../../pushpilot-ios").standardized.path)
+```
 
-**iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The plugin's podspec depends on the `PushPilot` pod, which `PushPilot.podspec` in the `pushpilot-ios` checkout provides. It contains the `PushPilot` library and depends on the `PushPilotLive` pod (`PushPilotLive.podspec`; add `pod 'PushPilotLive', :path => '<path to pushpilot-ios>'` to the Widget Extension's target too). Add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
+The example's Notification Service and Live Activity extensions share one `pushpilot-ios` package reference in `example/ios/Runner.xcodeproj`: in Xcode, replace it under *Package Dependencies* with *Add Local…* and the checkout.
+
+**iOS with CocoaPods** (apps with Swift Package Manager turned off, for example `enable-swift-package-manager: false` under `flutter: config:` in the app's `pubspec.yaml`). The plugin's podspec depends on the `PushPilot` pod, which `PushPilot.podspec` in the `pushpilot-ios` checkout provides. It contains the `PushPilot` library and depends on the `PushPilotLive` pod (`PushPilotLive.podspec`; add `pod 'PushPilotLive', :path => '<path to pushpilot-ios>'` to the Widget Extension's target too). Add `PushPilotNotificationService` to your extension as a Swift package (step 3 of the extension steps), which works in a CocoaPods app too. Until the pods are on CocoaPods trunk, and to build a local checkout, add this to the app's `ios/Podfile`, inside `target 'Runner'` after `flutter_install_all_ios_pods`:
 
 ```ruby
 pod 'PushPilot', :path => '<path to pushpilot-ios>'
 ```
 
-Only add it to a CocoaPods build: with Swift Package Manager on, the plugin already gets PushPilot as a Swift package, and the pod would link it twice. The example uses Swift Package Manager, so it has no Podfile; to try CocoaPods with it, turn the setting off, run `flutter build ios --config-only` once to generate `example/ios/Podfile` (its `pod install` fails until the line is added), and add the line with the path `../../../pushpilot-ios`. Once the pod is on CocoaPods trunk, the Podfile line is no longer needed.
+Only add it to a CocoaPods build: with Swift Package Manager on, the plugin already gets PushPilot as a Swift package, and the pod would link it twice. The example uses Swift Package Manager, so it has no Podfile; to try CocoaPods with it, turn the setting off, run `flutter build ios --config-only` once to generate `example/ios/Podfile` (its `pod install` fails until the line is added), and add the line with the path `../../../pushpilot-ios`. Once the pod is on CocoaPods trunk, the Podfile line is only needed for a local checkout.
 
 The full release order is in [RELEASING.md](RELEASING.md).
 
 ## Example app
 
-`example/` sets a link handler and a tap handler and initialises PushPilot at launch, shows the last tapped link and tap, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). For live activities it passes the App Group `group.ai.pushpilot.pushpilotFlutterExample` to `init` and every opened URL through `handleLiveActivityURL` (the screen shows the link that comes back), and on iOS it has `NSSupportsLiveActivities`, the App Group on both targets, and a `LiveActivity` Widget Extension (`example/ios/LiveActivity/`) linking `PushPilotLive` from the local pushpilot-ios package. For in-app messages it has a trigger name field and a **Show in-app message** button that calls `showInApp` and shows the answer; the button is wrapped in `PushPilotMark(name: 'example_show_in_app')`, so a coach mark aimed at that name points at it. It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
+`example/` sets a link handler and a tap handler and initialises PushPilot at launch, shows the last tapped link and tap, and has buttons for permission, set user id, set topics, logout and forget. On Android it forwards the Firebase Installation ID from `firebase_messaging` `register()` / `onRegistered` and skips PushPilot pushes in its own `onMessage` handler. On iOS it has the Push Notifications entitlement, the `AppDelegate` line, and a Notification Service Extension (`example/ios/NotificationService/`). For live activities it passes the App Group `group.ai.pushpilot.pushpilotFlutterExample` to `init` and every opened URL through `handleLiveActivityURL` (the screen shows the link that comes back), and on iOS it has `NSSupportsLiveActivities`, the App Group on both targets, and a `LiveActivity` Widget Extension (`example/ios/LiveActivity/`) linking `PushPilotLive` from the pushpilot-ios package. For in-app messages it has a trigger name field and a **Show in-app message** button that calls `showInApp` and shows the answer; the button is wrapped in `PushPilotMark(name: 'example_show_in_app')`, so a coach mark aimed at that name points at it. It builds and runs without a Firebase config; Android then has no push address, while iOS needs no Firebase. To try it with real pushes:
 
 1. Android: put your `google-services.json` in `example/android/app/` (the Google services Gradle plugin is applied only when the file exists), with an application id registered in your Firebase project. It is git-ignored; never commit it.
 2. iOS: set your signing team, bundle ids and an App Group you own for all three targets (the extensions' bundle ids must start with the app's), and add your APNs key to the PushPilot app.
