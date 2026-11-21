@@ -1,3 +1,8 @@
+## 2.3.0 (2026-11-23)
+
+* Wraps the PushPilot Android and iOS SDKs 2.3.0.
+* `track(name, [properties])`: records a custom event such as `order_placed`; the native SDKs batch and send it. Custom events can start journeys.
+
 ## 2.2.0 (2026-11-20)
 
 * Wraps the PushPilot Android and iOS SDKs 2.2.0, which show in-app messages from the dashboard: HTML pages over the app, on app open with no Dart code.

@@ -125,6 +125,10 @@ public class PushpilotFlutterPlugin: NSObject, FlutterPlugin, FlutterSceneLifeCy
       // The channel turns Dart null into NSNull, which the SDK treats as "remove".
       guard let attributes = call.arguments as? [String: Any] else { return result(badArguments) }
       PushPilot.setAttributes(attributes)
+    case "track":
+      let args = call.arguments as? [String: Any] ?? [:]
+      guard let name = args["name"] as? String else { return result(badArguments) }
+      PushPilot.track(name, properties: args["properties"] as? [String: Any] ?? [:])
     case "setTopics":
       guard let topics = call.arguments as? [String] else { return result(badArguments) }
       PushPilot.setTopics(topics)

@@ -49,6 +49,11 @@ class PushPilot {
   static Future<void> setAttributes(Map<String, Object?> attributes) =>
       _call('setAttributes', attributes);
 
+  /// Records a custom event such as `order_placed`. Property values are String, num or bool; a numeric
+  /// `value` is summed in rollups. The native SDK validates, stores and sends events in batches.
+  static Future<void> track(String name, [Map<String, Object?> properties = const {}]) =>
+      _call('track', {'name': name, 'properties': properties});
+
   /// Replaces this installation's topic list.
   static Future<void> setTopics(List<String> topics) => _call('setTopics', topics);
 

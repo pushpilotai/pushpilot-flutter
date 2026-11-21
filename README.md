@@ -250,6 +250,16 @@ Limits of the coach-mark stand-in:
 
 On Android, the native SDK learns which activity is in the foreground from the moment it is initialised, and Dart's `init` runs after Flutter's activity has already resumed. So after a cold start, app-open messages and `showInApp` wait until the app next comes to the foreground (or another activity resumes). iOS reads the foreground state at `init` and has no such delay.
 
+### Custom events
+
+Record what users do with `track`, then target or report on it in the dashboard:
+
+```dart
+PushPilot.track('order_placed', {'value': 49.99, 'currency': 'INR', 'items': 3});
+```
+
+Names are snake_case, at most 40 characters, and are registered on first use (up to 100 per app, 20 properties each). Property values are `String`, `num` or `bool`; a numeric `value` is summed in rollups. Pass dates as RFC 3339 strings: a `DateTime` cannot cross the platform channel, and the whole call is dropped. The native SDKs validate events, keep them on the device and send them in batches with retries.
+
 ### Moving from 1.x
 
 - Android: remove any code that showed PushPilot pushes yourself; the plugin now shows them. Keep `setPushToken`. Read tapped-push data with `setTapHandler`, not from your activity's intent extras: the native SDK no longer puts it there under your own keys.
@@ -265,6 +275,7 @@ All methods are static on `PushPilot`. Each returns a `Future` that completes on
 | `setPushToken(String? token)` | Android only: stores the device's FCM push address and syncs it: the Firebase Installation ID from `onRegistered` (`firebase_messaging` 17+) or the registration token from `getToken` / `onTokenRefresh` (older versions). Pass only one of them. `null` clears it, and the device then stops receiving pushes. Ignored on iOS, where the plugin passes the APNs device token itself. |
 | `setExternalUserId(String? id)` | Links this installation to your own user id (1 to 255 characters). One user can have many installations. `null` clears it, the same as `logout()`. |
 | `setAttributes(Map<String, Object?> attributes)` | Merges custom attributes. Values are `String`, `num` or `bool`, or `null` to remove one. Pass dates as RFC 3339 strings (`DateTime.toUtc().toIso8601String()`): a `DateTime` cannot cross the platform channel, and the whole call is dropped. Only attributes declared on the dashboard are stored. |
+| `track(String name, [Map<String, Object?> properties = const {}])` | Records a [custom event](#custom-events) such as `order_placed`. Names are snake_case, at most 40 characters; property values are `String`, `num` or `bool` (others are dropped), and a numeric `value` is summed in rollups. |
 | `setTopics(List<String> topics)` | Replaces the topic list (at most 100; letters, digits and `-_.~%`). Invalid names are dropped. |
 | `logout()` | Clears the external user id. The device stays registered and keeps receiving pushes. |
 | `forget()` | Deletes this installation from PushPilot and clears everything the SDK stored. A new installation is registered only after your next setter call or the next app launch. To keep a user forgotten, stop calling the SDK for them. |

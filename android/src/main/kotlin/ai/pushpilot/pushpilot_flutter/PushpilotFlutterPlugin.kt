@@ -74,6 +74,7 @@ class PushpilotFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, A
             "setPushToken" -> PushPilot.setPushToken(call.arguments as String?)
             "setExternalUserId" -> PushPilot.setExternalUserId(call.arguments as String?)
             "setAttributes" -> @Suppress("UNCHECKED_CAST") PushPilot.setAttributes(call.arguments as Map<String, Any?>)
+            "track" -> PushPilot.track(call.argument<String>("name")!!, call.argument<Map<String, Any?>>("properties") ?: emptyMap())
             "setTopics" -> @Suppress("UNCHECKED_CAST") PushPilot.setTopics(call.arguments as List<String>)
             "logout" -> PushPilot.logout()
             "forget" -> PushPilot.forget()
