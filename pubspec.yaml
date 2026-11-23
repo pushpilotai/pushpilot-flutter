@@ -1,6 +1,6 @@
 name: pushpilot_flutter
 description: "AI-native push notifications, Live Activities and in-app messages for Flutter. PushPilot AI runs engagement on autopilot. First 1,000 devices free, then $1 per 1,000."
-version: 2.2.0
+version: 2.3.0
 homepage: https://pushpilot.ai
 repository: https://github.com/pushpilotai/pushpilot-flutter
 issue_tracker: https://github.com/pushpilotai/pushpilot-flutter/issues

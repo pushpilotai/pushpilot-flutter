@@ -1,5 +1,5 @@
 group = "ai.pushpilot.pushpilot_flutter"
-version = "2.2.0"
+version = "2.3.0"
 
 buildscript {
     val kotlinVersion = "2.4.0"
@@ -56,6 +56,6 @@ kotlin {
 dependencies {
     // Native PushPilot Android SDK from Maven Central. To build a local pushpilot-android checkout,
     // see README -> Local development.
-    implementation("ai.pushpilot:sdk:2.2.0")
+    implementation("ai.pushpilot:sdk:2.3.0")
     testImplementation("junit:junit:4.13.2")
 }

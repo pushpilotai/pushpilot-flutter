@@ -4,7 +4,7 @@ import Foundation
 import PackageDescription
 
 // For local development against a pushpilot-ios checkout, see README -> Local development.
-let pushPilot = Package.Dependency.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.2.0")
+let pushPilot = Package.Dependency.package(url: "https://github.com/pushpilotai/pushpilot-ios", from: "2.3.0")
 
 let package = Package(
     name: "pushpilot_flutter",
