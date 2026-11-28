@@ -1,3 +1,7 @@
+## 2.4.0 (2026-11-28)
+
+* Wraps the PushPilot Android and iOS SDKs 2.4.0, which read the compact live activity start format. PushPilot sends it to these versions, so large live activity designs fit under the 4 KB push limit. No Dart API changes.
+
 ## 2.3.0 (2026-11-23)
 
 * Wraps the PushPilot Android and iOS SDKs 2.3.0.

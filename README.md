@@ -4,7 +4,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 - Android and iOS. Needs Flutter 3.47 or later and Dart 3.13 or later (built and tested with Flutter 3.47.1, Dart 3.13.1).
 - Android 7.0 (API 24) and later, the minimum for current Flutter (the native SDK itself supports API 23). iOS 15 and later.
-- A thin layer over the native PushPilot SDKs 2.3.0 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
+- A thin layer over the native PushPilot SDKs 2.4.0 ([Android](https://github.com/pushpilotai/pushpilot-android), [iOS](https://github.com/pushpilotai/pushpilot-ios)). Syncing, retries, storage, validation and showing notifications all happen there.
 - No Firebase dependency. On Android your app keeps its own Firebase setup and hands PushPilot the FCM push address; on iOS the plugin uses APNs directly and needs no Firebase at all.
 - Never asks for notification permission. No call ever throws; problems are logged in debug builds.
 
@@ -12,7 +12,7 @@ Registers your app's installation with PushPilot, shows PushPilot pushes and rec
 
 ```yaml
 dependencies:
-  pushpilot_flutter: ^2.3.0
+  pushpilot_flutter: ^2.4.0
 ```
 
 ## Integrate
@@ -310,7 +310,7 @@ pushpilot-sdks/
 
 and switch these places locally (don't commit them):
 
-**Android.** The plugin depends on `ai.pushpilot:sdk:2.3.0` (`android/build.gradle.kts`). Publish your working copy to your local Maven repository and add `mavenLocal()` to the app's repositories (for the example, in `allprojects { repositories { ... } }` of `example/android/build.gradle.kts`):
+**Android.** The plugin depends on `ai.pushpilot:sdk:2.4.0` (`android/build.gradle.kts`). Publish your working copy to your local Maven repository and add `mavenLocal()` to the app's repositories (for the example, in `allprojects { repositories { ... } }` of `example/android/build.gradle.kts`):
 
 ```bash
 cd ../pushpilot-android && ./gradlew :sdk:publishToMavenLocal
